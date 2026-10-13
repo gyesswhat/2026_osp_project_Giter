@@ -1,0 +1,21 @@
+{% extends "index.html" %}
+{% block title %}Register Items - EwhaMarket{% endblock %}
+{% block content %}
+<h1>상품 등록</h1>
+<form id="item-form" action="{{ url_for('submit_item') }}" method="post" enctype="multipart/form-data">
+  <label>Product name: <input type="text" name="name" required></label>
+  <label>Seller ID: <input type="text" name="seller" required></label>
+  <label>Address: <input type="text" name="address" required></label>
+  <label>Price: <input type="number" name="price" min="0" required></label>
+  <label>Status?
+    <select name="status">
+      <option>판매중</option>
+      <option>예약중</option>
+      <option>판매완료</option>
+    </select>
+  </label>
+  <label>Email: <input type="email" name="email" required></label>
+  <label>Representative Image upload: <input type="file" name="picture" accept="image/*" required></label>
+  <input type="submit" value="Submit!">
+</form>
+{% endblock %}

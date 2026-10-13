@@ -1,0 +1,14 @@
+body { margin: 0; font-family: "Segoe UI", sans-serif; background: #f7f7f7; color: #222; }
+.navbar { display: flex; align-items: center; background: #1f2a44; padding: 12px 24px; }
+.navbar .brand { color: #fff; font-size: 1.4rem; font-weight: bold; text-decoration: none; margin-right: auto; }
+.navbar ul { list-style: none; display: flex; gap: 24px; margin: 0; padding: 0; }
+.navbar a { color: #fff; text-decoration: none; }
+.navbar a:hover { text-decoration: underline; }
+.container { max-width: 720px; margin: 32px auto; background: #fff; padding: 24px 32px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+form label { display: block; margin-bottom: 12px; }
+form input, form select { margin-left: 8px; padding: 4px 6px; }
+form input[type=submit] { margin: 8px 0 0; padding: 8px 20px; background: #1f2a44; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+table.result { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+table.result th, table.result td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+table.result th { background: #f0f0f0; width: 160px; }
+img.preview { max-width: 300px; border-radius: 4px; }

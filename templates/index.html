@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}EwhaMarket{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <a class="brand" href="{{ url_for('index') }}">EwhaMarket</a>
+    <ul>
+      <li><a href="{{ url_for('item_list') }}">List</a></li>
+      <li><a href="{{ url_for('review_list') }}">Review</a></li>
+      <li><a href="{{ url_for('reg_items') }}">Register Items</a></li>
+      <li><a href="{{ url_for('reg_reviews') }}">Register Reviews</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    {% block content %}
+    <h1>EwhaMarket에 오신 것을 환영합니다</h1>
+    <p>이화여대 학생들을 위한 중고 거래 플랫폼입니다. 상단 메뉴에서 상품을 등록하거나 목록을 확인해 보세요.</p>
+    {% endblock %}
+  </main>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
