@@ -1,0 +1,21 @@
+{% extends "index.html" %}
+{% block title %}Result - EwhaMarket{% endblock %}
+{% block content %}
+<h1>등록 결과</h1>
+<table class="result">
+  <tr><th>Product name</th><td>{{ data.name }}</td></tr>
+  <tr><th>Seller ID</th><td>{{ data.seller }}</td></tr>
+  <tr><th>Price</th><td>{{ data.price }}원</td></tr>
+  <tr><th>Address</th><td>{{ data.address }}</td></tr>
+  <tr><th>Status</th><td>{{ data.status }}</td></tr>
+  <tr><th>Email</th><td>{{ data.email }}</td></tr>
+  <tr><th>Picture</th><td>
+    {% if image_url %}
+      <img src="{{ url_for('static', filename=image_url) }}" alt="{{ data.name }}" class="preview">
+    {% else %}
+      (업로드된 사진 없음)
+    {% endif %}
+  </td></tr>
+</table>
+<a href="{{ url_for('reg_items') }}">← 다시 등록하기</a>
+{% endblock %}
