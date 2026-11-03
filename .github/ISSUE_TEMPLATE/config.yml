@@ -1,0 +1,6 @@
+blank_issues_enabled: true
+contact_links:
+  # <OWNER>/<REPO>를 실제 레포 주소로 바꾼다
+  - name: 📖 기여 가이드
+    url: https://github.com/gyesswhat/2026_osp_project_Giter/blob/main/CONTRIBUTING.md
+    about: 브랜치·커밋·PR 규칙을 먼저 확인해주세요.

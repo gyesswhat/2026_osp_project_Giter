@@ -1,0 +1,80 @@
+name: 🐛 Bug Report
+description: 버그를 제보합니다
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        재현 가능한 정보를 최대한 채워주세요. 보안 취약점은 이슈 대신 비공개로 제보해 주세요.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      description: 문제가 발생한 영역
+      options:
+        - FE
+        - BE
+        - 공통 (CI, 설정, 문서)
+        - 기타 · 모르겠음
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 무슨 일이 있었나요?
+      description: 문제 상황을 한두 문단으로 설명해주세요
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 동작 / 실제 동작
+      placeholder: |
+        기대: ...
+        실제: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 환경
+      description: 해당하는 것만 적어주세요
+      placeholder: |
+        - 기기/OS: iPhone 15, iOS 17.4 / Pixel 7, Android 14
+        - 앱 버전 또는 커밋: 1.2.0 (abc1234)
+        - 서버 환경: local / dev / prod
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그 / 에러 메시지
+      description: 스택 트레이스, 콘솔 로그, 응답 바디 등 (자동으로 코드 블록 처리됩니다)
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 추가 정보
+      description: 스크린샷, 관련 PR/이슈, 추정 원인 등
+    validations:
+      required: false

@@ -1,0 +1,10 @@
+# 커밋 메시지 형식을 커밋할 때 검사한다.
+# 설치: brew install lefthook && lefthook install
+# 한 번만 건너뛰기: LEFTHOOK=0 git commit ...
+
+commit-msg:
+  commands:
+    conventional-commit:
+      # <type>(<scope>): <제목>. scope는 선택이고 fe, be, fe/login처럼 쓴다
+      run: "head -1 {1} | grep -qE '^(feat|fix|refactor|chore|docs|test)(\\([a-z0-9/-]+\\))?!?: .{1,}|^(Merge|Revert) '"
+      fail_text: "커밋 메시지 형식: <type>(<scope>): <제목> | 예시: feat(fe): 로그인 화면 추가, fix(be/auth): 토큰 만료 처리"
