@@ -1,8 +1,13 @@
+import hashlib
 import os
-from flask import Flask, render_template, request
+from flask import Flask, flash, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
+from database import DBhandler
+
 app = Flask(__name__)
+app.config["SECRET_KEY"] = "helloosp"
+DB = DBhandler()
 UPLOAD_DIR = os.path.join(app.static_folder, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -39,12 +44,34 @@ def submit_item():
 
     picture = request.files.get("picture")
     image_url = None
+    filename = ""
     if picture and picture.filename:
         filename = secure_filename(picture.filename)
         picture.save(os.path.join(UPLOAD_DIR, filename))
         image_url = f"uploads/{filename}"
 
+    DB.insert_item(data["name"], data, filename)
     return render_template("result.html", data=data, image_url=image_url)
+
+
+@app.route("/login")
+def login():
+    return render_template("login.html")
+
+
+@app.route("/signup")
+def signup():
+    return render_template("signup.html")
+
+
+@app.route("/signup_post", methods=["POST"])
+def register_user():
+    data = request.form
+    pw_hash = hashlib.sha256(data["pw"].encode("utf-8")).hexdigest()
+    if DB.insert_user(data, pw_hash):
+        return redirect(url_for("login"))
+    flash("이미 존재하는 ID입니다.")
+    return redirect(url_for("signup"))
 
 
 if __name__ == "__main__":

@@ -12,3 +12,4 @@ table.result { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
 table.result th, table.result td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
 table.result th { background: #f0f0f0; width: 160px; }
 img.preview { max-width: 300px; border-radius: 4px; }
+.flash { color: #c0392b; font-weight: bold; }

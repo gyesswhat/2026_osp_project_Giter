@@ -1,0 +1,12 @@
+{% extends "index.html" %}
+{% block title %}Login - EwhaMarket{% endblock %}
+{% block content %}
+<h1>로그인</h1>
+<form>
+  <label>ID : <input type="text" name="id" required></label>
+  <label>Password : <input type="password" name="pw" required></label>
+  <p>Input ID and password, and click the login button</p>
+  <input type="submit" value="Login">
+</form>
+<a href="{{ url_for('signup') }}"><button type="button">Signup</button></a>
+{% endblock %}
