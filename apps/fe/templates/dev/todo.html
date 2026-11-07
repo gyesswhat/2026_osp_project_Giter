@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}준비 중 | BoughtIT{% endblock %}
+{% block content %}
+  <div class="panel mx-auto max-w-xl p-8 text-center">
+    <h1 class="text-xl font-extrabold">아직 만들지 않은 화면이에요</h1>
+    <p class="mt-2 text-muted"><code class="font-mono text-ink">templates/{{ template }}</code> 파일을 만들면 여기에 보여요.</p>
+    <a href="{{ url_for('dev_components') }}" class="btn-outline mt-6">공통 컴포넌트 보기</a>
+  </div>
+{% endblock %}

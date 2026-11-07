@@ -1,0 +1,42 @@
+{#
+  상단 헤더: 로고 + 탭 내비(상품·구해요·리뷰·채팅·마이) + 로그인/로그아웃 버튼 자리
+  - 현재 탭 표시: 각 화면 템플릿 맨 위에서 {% set active_tab = 'product' %} 처럼 지정한다.
+    값: product | wanted | review | chat | my
+  - 로그인 여부: session['id'] 가 있으면 로그인 상태로 본다. (BE와 키 이름 맞출 것)
+  - 채팅·마이 탭은 로그인 후에만 보인다. (시안 기준)
+  - 링크 엔드포인트 이름은 라우트 함수 규칙(도메인_동작)을 따른다.
+#}
+{% set tab = active_tab | default('') %}
+{% set logged_in = session.get('id') %}
+{% set tabs = [
+  ('product', '상품', 'product_list', false),
+  ('wanted', '구해요', 'wanted_list', false),
+  ('review', '리뷰', 'review_list', false),
+  ('chat', '채팅', 'chat_room', true),
+  ('my', '마이', 'my_index', true),
+] %}
+
+<header class="head-slip sticky top-0 z-20">
+  <div class="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-6">
+    <a href="{{ url_for('product_list') }}" class="shrink-0 font-stamp text-[25px] leading-none text-onbrand" aria-label="BoughtIT 홈">BoughtIT</a>
+
+    <nav class="flex min-w-0 gap-1 overflow-x-auto text-[15px] font-semibold" aria-label="주 메뉴">
+      {% for key, text, endpoint, need_login in tabs %}
+        {% if not need_login or logged_in %}
+          <a href="{{ url_for(endpoint) }}"
+             class="shrink-0 rounded px-3 py-1.5 {{ 'bg-bg text-brandink' if tab == key else 'hover:bg-white/10' }}"
+             {% if tab == key %}aria-current="page"{% endif %}>{{ text }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div class="ml-auto flex shrink-0 items-center gap-1">
+      {% if logged_in %}
+        <a href="{{ url_for('product_new') }}" class="btn-head">상품 등록</a>
+        <a href="{{ url_for('auth_logout') }}" class="btn px-3 text-onbrand hover:bg-white/10">로그아웃</a>
+      {% else %}
+        <a href="{{ url_for('auth_login') }}" class="btn-head">로그인</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
