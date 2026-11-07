@@ -1,0 +1,157 @@
+
+{% extends "base.html" %}
+{% set active_tab = "review" %}
+
+{% block title %}리뷰 쓰기 | BoughtIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-6">
+  <section class="review-form">
+
+    <!-- 페이지 제목 -->
+    <h1 class="mb-6 text-3xl font-extrabold text-ink">
+      리뷰 쓰기
+    </h1>
+
+    <!-- 리뷰 작성 영역 -->
+    <div class="panel p-8">
+
+      <!-- 거래 상품 정보 -->
+      <div class="flex items-center gap-4 rounded bg-[#F8F8F8] p-3">
+        <span class="ph relative h-14 w-14 shrink-0 rounded-sm text-2xl"
+              style="--h:10">
+          <span class="center">🫖</span>
+        </span>
+
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-ink">전기 주전자 1L</p>
+          <p class="mt-1 text-sm text-muted">
+            판매자 ehouse_tea
+          </p>
+        </div>
+
+        <span class="stamp mr-2">BOUGHT IT</span>
+      </div>
+
+      <!-- 리뷰 작성 폼 -->
+      <form class="mt-7 space-y-7">
+
+        <!-- 별점 -->
+        <fieldset>
+          <legend class="mb-2 text-sm font-semibold text-ink">
+            별점
+          </legend>
+
+          <div class="flex items-center gap-1" aria-label="별점 선택">
+            {% for score in range(1, 6) %}
+            <label class="cursor-pointer">
+              <input
+                type="radio"
+                name="rating"
+                value="{{ score }}"
+                class="peer sr-only"
+                {% if score == 4 %}checked{% endif %}
+                required
+              >
+              <span class="rating-star text-3xl text-[#C5CEF9]"
+                    data-score="{{ score }}">★</span>
+            </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <!-- 제목 -->
+        <div>
+          <label for="review-title"
+                 class="mb-2 block text-sm font-semibold text-ink">
+            제목
+          </label>
+          <input
+            id="review-title"
+            name="title"
+            type="text"
+            placeholder="거래가 어땠는지 한 줄로 적어 주세요."
+            class="w-full border-0 border-b border-dashed border-muted bg-transparent px-0 py-3 text-sm text-ink outline-none focus:border-brand"
+          >
+        </div>
+
+        <!-- 사진 -->
+        <div>
+          <label for="review-photo"
+                 class="mb-2 block text-sm font-semibold text-ink">
+            사진 <span class="font-normal text-muted">(선택)</span>
+          </label>
+
+          <label for="review-photo"
+                 class="flex h-20 cursor-pointer items-center justify-center rounded-sm border border-dashed border-line bg-[#F8F8F8] font-semibold text-brandink">
+            사진 올리기
+          </label>
+
+          <input
+            id="review-photo"
+            name="photo"
+            type="file"
+            accept="image/*"
+            class="sr-only"
+          >
+        </div>
+
+        <!-- 내용 -->
+        <div>
+          <label for="review-content"
+                 class="mb-2 block text-sm font-semibold text-ink">
+            내용
+          </label>
+          <textarea
+            id="review-content"
+            name="content"
+            rows="5"
+            placeholder="상품 상태와 거래 과정을 알려 주세요."
+            class="w-full resize-y border-0 border-b border-dashed border-muted bg-transparent px-0 py-3 text-sm leading-7 text-ink outline-none focus:border-brand"
+          ></textarea>
+        </div>
+
+        <!-- 하단 버튼 -->
+        <div class="flex justify-end gap-4 border-t border-dashed border-line pt-6">
+          <a href="{{ url_for('review_list') }}"
+             class="px-3 py-3 text-sm font-semibold text-muted">
+            취소
+          </a>
+
+          <button type="button"
+                  class="bg-brand px-5 py-3 text-sm font-bold text-white">
+            리뷰 등록
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </section>
+</div>
+
+<!-- 별점 선택 동작 -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const ratingInputs = document.querySelectorAll('input[name="rating"]');
+    const stars = document.querySelectorAll(".rating-star");
+
+    function updateStars() {
+      const selected = document.querySelector(
+        'input[name="rating"]:checked'
+      );
+      const rating = selected ? Number(selected.value) : 0;
+
+      stars.forEach(function (star) {
+        const score = Number(star.dataset.score);
+        star.style.color = score <= rating ? "#2B4BF2" : "#C5CEF9";
+      });
+    }
+
+    ratingInputs.forEach(function (input) {
+      input.addEventListener("change", updateStars);
+    });
+
+    updateStars();
+  });
+</script>
+{% endblock %}

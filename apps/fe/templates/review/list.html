@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% set active_tab = "review" %}
+
+{% block title %}거래 리뷰 | BoughtIT{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/review.css') }}">
+{% endblock %}
+
+{% block content %}
+
+
+  <div class="mx-auto max-w-6xl px-4 py-10">
+
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="text-3xl font-extrabold">거래 리뷰</h1>
+        <p class="mt-1 text-[#59627E]">
+          거래를 마친 벗이 남긴 리뷰
+          <strong>37</strong>개
+        </p>
+      </div>
+      <a href="{{ url_for('review_new') }}"
+         class="bg-[#2B4BF2] px-4 py-2.5 text-sm font-semibold text-white">
+        리뷰 쓰기
+      </a>
+    </div>
+
+<ul class="panel mt-6">
+<li class="flex items-center gap-4 px-5 py-5 border-b border-dashed border-line">
+  <!-- 상품 이미지 -->
+  <span class="ph relative review-thumbnail rounded-sm text-3xl"
+        style="--h:150">
+    <span class="center">📗</span>
+  </span>
+
+  <!-- 리뷰 정보 -->
+  <a href="{{ url_for('review_detail') }}" class="min-w-0 flex-1">
+    <p class="text-brandink">★★★★★</p>
+
+    <h2 class="review-title">
+      책 상태가 설명 그대로였어요
+    </h2>
+
+    <p class="text-sm text-muted">
+      컴퓨터구조 및 설계 5판
+    </p>
+
+    <p class="mt-2 text-sm">
+      작성자 <span class="font-semibold text-brandink">ewhain_sw</span>
+      · 판매자 <span class="font-semibold text-stamp">baekkot21</span>
+    </p>
+  </a>
+
+  <!-- 작성 날짜 -->
+  <span class="num review-date">
+    2026.10.05
+  </span>
+</li>
+
+<li class="flex items-center gap-4 px-5 py-5 border-b border-dashed border-line">
+  <!-- 상품 이미지 -->
+  <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
+        style="--h:45">
+    <span class="center">⌨️</span>
+  </span>
+
+  <!-- 리뷰 정보 -->
+  <a href="{{ url_for('review_detail') }}" class="min-w-0 flex-1">
+    <p class="text-brandink">★★★★★</p>
+
+    <h2 class="mt-1 text-lg font-bold text-ink">
+      약속 시간을 잘 맞춰 주셨어요
+    </h2>
+
+    <p class="text-sm text-muted">
+      로지텍 K380 무선 키보드
+    </p>
+
+    <p class="mt-2 text-sm">
+      작성자 <span class="font-semibold text-brandink">pear_blossom</span>
+      · 판매자 <span class="font-semibold text-stamp">ewhain_sw</span>
+    </p>
+  </a>
+
+  <!-- 작성 날짜 -->
+  <span class="num shrink-0 self-center text-sm font-normal text-muted">
+    2026.10.04
+  </span>
+</li>
+
+<li class="flex items-center gap-4 px-5 py-5 border-b border-dashed border-line">
+  <!-- 상품 이미지 -->
+  <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
+        style="--h:200">
+    <span class="center">🧊</span>
+  </span>
+
+  <!-- 리뷰 정보 -->
+  <a href="{{ url_for('review_detail') }}" class="min-w-0 flex-1">
+    <p class="text-brandink">★★★★☆</p>
+
+    <h2 class="mt-1 text-lg font-bold text-ink">
+      냉장고 소음이 거의 없어요
+    </h2>
+
+    <p class="text-sm text-muted">
+      기숙사용 미니 냉장고
+    </p>
+
+    <p class="mt-2 text-sm">
+      작성자 <span class="font-semibold text-brandink">hanwoori302</span>
+      · 판매자 <span class="font-semibold text-stamp">hanwoori_210</span>
+    </p>
+  </a>
+
+  <!-- 작성 날짜 -->
+  <span class="num shrink-0 self-center text-sm font-normal text-muted">
+    2026.10.02
+  </span>
+</li>
+
+<li class="flex items-center gap-4 px-5 py-5 border-b border-dashed border-line">
+  <!-- 상품 이미지 -->
+  <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
+        style="--h:280">
+    <span class="center">👕</span>
+  </span>
+
+  <!-- 리뷰 정보 -->
+  <a href="{{ url_for('review_detail') }}" class="min-w-0 flex-1">
+    <p class="text-brandink">★★★★☆</p>
+
+    <h2 class="mt-1 text-lg font-bold text-ink">
+      과잠 사이즈가 조금 컸어요
+    </h2>
+
+    <p class="text-sm text-muted">
+      이화 과잠 M 사이즈
+    </p>
+
+    <p class="mt-2 text-sm">
+      작성자 <span class="font-semibold text-brandink">cse24</span>
+      · 판매자 <span class="font-semibold text-stamp">gwajam_22</span>
+    </p>
+  </a>
+
+  <!-- 작성 날짜 -->
+  <span class="num shrink-0 self-center text-sm font-normal text-muted">
+    2026.09.30
+  </span>
+</li>
+
+<li class="flex items-center gap-4 px-5 py-5 border-b border-dashed border-line">
+  <!-- 상품 이미지 -->
+  <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
+        style="--h:35">
+    <span class="center">📚</span>
+  </span>
+
+  <!-- 리뷰 정보 -->
+  <a href="{{ url_for('review_detail') }}" class="min-w-0 flex-1">
+    <p class="text-brandink">★★★☆☆</p>
+
+    <h2 class="mt-1 text-lg font-bold text-ink">
+      필기 흔적이 생각보다 많았어요
+    </h2>
+
+    <p class="text-sm text-muted">
+      토익 기출 문제집 세트
+    </p>
+
+    <p class="mt-2 text-sm">
+      작성자 <span class="font-semibold text-brandink">toeic900</span>
+      · 판매자 <span class="font-semibold text-stamp">baekkot21</span>
+    </p>
+  </a>
+
+  <!-- 작성 날짜 -->
+  <span class="num shrink-0 self-center text-sm font-normal text-muted">
+    2026.09.28
+  </span>
+</li>
+ 
+<li class="flex items-center gap-4 px-5 py-5">
+  <!-- 상품 이미지 -->
+  <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
+        style="--h:260">
+    <span class="center">📘</span>
+  </span>
+
+  <!-- 리뷰 정보 -->
+  <a href="{{ url_for('review_detail') }}" class="min-w-0 flex-1">
+    <p class="text-brandink">★★★★★</p>
+
+    <h2 class="mt-1 text-lg font-bold text-ink">
+      거의 새 책이라 만족해요
+    </h2>
+
+    <p class="text-sm text-muted">
+      운영체제 10판
+    </p>
+
+    <p class="mt-2 text-sm">
+      작성자 <span class="font-semibold text-brandink">os_study</span>
+      · 판매자 <span class="font-semibold text-stamp">baekkot21</span>
+    </p>
+  </a>
+
+  <!-- 작성 날짜 -->
+  <span class="num shrink-0 self-center text-sm font-normal text-muted">
+    2026.09.20
+  </span>
+</li>
+
+    </ul>
+
+    <nav class="mt-10 flex items-center justify-center gap-3 text-sm"
+     aria-label="페이지">
+     <button type="button" class="px-4 py-2 font-semibold text-muted">
+      이전
+      </button>
+  
+
+      <button type="button"
+          class="rounded bg-brand px-4 py-3 font-bold text-white"
+          aria-current="page">
+          1
+          </button>
+
+      <button type="button" class="px-4 py-2 font-bold">
+       2
+      </button>
+
+      <button type="button" class="px-4 py-2 font-semibold text-muted">
+       다음
+      </button>
+    </nav>
+
+  </div>
+
+{% endblock %}
