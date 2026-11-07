@@ -1,0 +1,169 @@
+{#
+  버튼·칩·입력 매크로
+  사용: {% from "components/_form_fields.html" import button, chip_group, input, textarea, select %}
+
+  공통 인자
+  - name: 폼 필드 이름 (BE request.form 키와 맞춘다)
+  - label: 화면에 보이는 라벨. sr_label=true 면 화면에서 숨기고 스크린리더에만 읽힌다
+  - error: 오류 메시지. 있으면 입력칸이 빨갛게 바뀌고 아래에 메시지를 띄운다
+  - help: 입력칸 아래 안내 문구
+  - attrs: 그 밖의 HTML 속성 dict. 예) attrs={'inputmode': 'numeric', 'maxlength': 20}
+#}
+
+{# 속성 dict를 HTML 속성 문자열로 바꾼다. true는 값 없는 속성, false/None은 생략 #}
+{% macro _attrs(attrs) -%}
+  {%- for k, v in (attrs or {}).items() if v is not none and v is not false -%}
+    {{ ' ' }}{{ k }}{% if v is not true %}="{{ v }}"{% endif %}
+  {%- endfor -%}
+{%- endmacro %}
+
+{# 라벨 + 안내/오류 #}
+{% macro _label(id, label, required=false, optional=false, sr_label=false) -%}
+  {%- if label -%}
+    <label for="{{ id }}" class="{{ 'sr-only' if sr_label else 'label' }}">{{ label }}
+      {%- if required %} <span class="text-stamp" aria-hidden="true">*</span>{% endif -%}
+      {%- if optional %} <span class="font-normal text-muted">(선택)</span>{% endif -%}
+    </label>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro _message(id, help=none, error=none) -%}
+  {%- if error -%}
+    <p id="{{ id }}-msg" class="error" role="alert">{{ error }}</p>
+  {%- elif help -%}
+    <p id="{{ id }}-msg" class="help">{{ help }}</p>
+  {%- else -%}
+    {# 오류 메시지 자리: JS로 채울 때 쓴다 #}
+    <p id="{{ id }}-msg" class="error" hidden></p>
+  {%- endif -%}
+{%- endmacro %}
+
+
+{#
+  버튼
+  variant: primary | outline | quiet
+  href를 주면 <a>, 아니면 <button>
+  예) {{ button('상품 등록', type='submit') }}
+      {{ button('취소', variant='quiet', href=url_for('product_list')) }}
+#}
+{% macro button(text, variant='primary', type='button', href=none, class='', disabled=false, attrs={}) -%}
+  {%- set cls = 'btn-' ~ variant ~ (' ' ~ class if class else '') -%}
+  {%- if href -%}
+    <a href="{{ href }}" class="{{ cls }}"{{ _attrs(attrs) }}>{{ text }}</a>
+  {%- else -%}
+    <button type="{{ type }}" class="{{ cls }}"{% if disabled %} disabled{% endif %}{{ _attrs(attrs) }}>{{ text }}</button>
+  {%- endif -%}
+{%- endmacro %}
+
+
+{#
+  칩 하나 (단독으로 쓸 때). 그룹 동작이 필요하면 chip_group을 쓴다.
+#}
+{% macro chip(text, value='', pressed=false, disabled=false, attrs={}) -%}
+  <button type="button" class="chip" value="{{ value }}" aria-pressed="{{ 'true' if pressed else 'false' }}"
+    {%- if disabled %} disabled{% endif %}{{ _attrs(attrs) }}>{{ text }}</button>
+{%- endmacro %}
+
+
+{#
+  칩 그룹
+  options: [(값, 텍스트), ...]
+  selected: 선택된 값 하나(문자열) 또는 여러 개(list)
+  multiple: 여러 개 선택 가능 여부
+  required: 단일 선택에서 선택을 해제하지 못하게 할지 (필터 칩처럼 늘 하나가 켜져 있어야 할 때)
+  선택된 값은 같은 name의 hidden input으로 폼에 함께 전송된다. (static/js/common.js)
+  값이 바뀌면 그룹에서 'chipchange' 이벤트가 발생한다. (event.detail.values)
+  예) {{ chip_group('sale_status', [('all','전체'),('sale','판매중'),('hold','예약중')], selected='all', label='판매 상태', sr_label=true, required=true) }}
+#}
+{% macro chip_group(name, options, selected=none, label=none, multiple=false, required=false, sr_label=false, error=none, id=none, class='') -%}
+  {%- set gid = id or ('cg-' ~ name) -%}
+  {%- set sel = (selected if selected is iterable and selected is not string else ([selected] if selected is not none else [])) | map('string') | list -%}
+  <div{% if class %} class="{{ class }}"{% endif %}>
+    {%- if label %}
+      <p id="{{ gid }}-label" class="{{ 'sr-only' if sr_label else 'label' }}">{{ label }}</p>
+    {%- endif %}
+    <div id="{{ gid }}" class="flex flex-wrap gap-2" role="group"
+         {%- if label %} aria-labelledby="{{ gid }}-label"{% endif %}
+         data-chip-group data-name="{{ name }}" data-multiple="{{ 'true' if multiple else 'false' }}" data-required="{{ 'true' if required else 'false' }}">
+      {%- for value, text in options %}
+        {{ chip(text, value=value, pressed=(value | string) in sel) }}
+      {%- endfor %}
+      {%- for v in sel %}
+        <input type="hidden" name="{{ name }}" value="{{ v }}" data-chip-value>
+      {%- endfor %}
+    </div>
+    {%- if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  </div>
+{%- endmacro %}
+
+
+{#
+  한 줄 입력
+  suffix: 입력칸 오른쪽 단위 (예: '원')
+  예) {{ input('price', '가격', type='text', suffix='원', attrs={'inputmode': 'numeric'}, required=true) }}
+#}
+{% macro input(name, label=none, type='text', value='', placeholder='', required=false, optional=false,
+               help=none, error=none, suffix=none, sr_label=false, id=none, class='', attrs={}) -%}
+  {%- set fid = id or name -%}
+  <div{% if class %} class="{{ class }}"{% endif %}>
+    {{ _label(fid, label, required, optional, sr_label) }}
+    {%- if suffix %}<div class="relative">{% endif %}
+    <input id="{{ fid }}" name="{{ name }}" type="{{ type }}" value="{{ value if value is not none else '' }}"
+      class="field{{ ' pr-10 font-mono' if suffix }}"
+      {%- if placeholder %} placeholder="{{ placeholder }}"{% endif %}
+      {%- if required %} required{% endif %}
+      {%- if error %} aria-invalid="true"{% endif %} aria-describedby="{{ fid }}-msg"
+      {{- _attrs(attrs) }}>
+    {%- if suffix %}
+      <span class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">{{ suffix }}</span>
+    </div>
+    {%- endif %}
+    {{ _message(fid, help, error) }}
+  </div>
+{%- endmacro %}
+
+
+{#
+  여러 줄 입력
+  예) {{ textarea('desc', '상세 설명', rows=5, placeholder='사용 기간, 상태, 흠집 여부를 적어 주세요.') }}
+#}
+{% macro textarea(name, label=none, value='', rows=5, placeholder='', required=false, optional=false,
+                  help=none, error=none, sr_label=false, id=none, class='', attrs={}) -%}
+  {%- set fid = id or name -%}
+  <div{% if class %} class="{{ class }}"{% endif %}>
+    {{ _label(fid, label, required, optional, sr_label) }}
+    <textarea id="{{ fid }}" name="{{ name }}" rows="{{ rows }}" class="field"
+      {%- if placeholder %} placeholder="{{ placeholder }}"{% endif %}
+      {%- if required %} required{% endif %}
+      {%- if error %} aria-invalid="true"{% endif %} aria-describedby="{{ fid }}-msg"
+      {{- _attrs(attrs) }}>{{ value if value is not none else '' }}</textarea>
+    {{ _message(fid, help, error) }}
+  </div>
+{%- endmacro %}
+
+
+{#
+  선택
+  options: [(값, 텍스트), ...]
+  placeholder: 주면 맨 위에 값이 빈 안내 옵션을 넣는다
+  예) {{ select('sort', [('new','최신순'),('low','낮은 가격순')], selected='new', label='정렬', sr_label=true) }}
+#}
+{% macro select(name, options, selected=none, label=none, placeholder=none, required=false, optional=false,
+                help=none, error=none, sr_label=false, id=none, class='', attrs={}) -%}
+  {%- set fid = id or name -%}
+  <div{% if class %} class="{{ class }}"{% endif %}>
+    {{ _label(fid, label, required, optional, sr_label) }}
+    <select id="{{ fid }}" name="{{ name }}" class="field"
+      {%- if required %} required{% endif %}
+      {%- if error %} aria-invalid="true"{% endif %} aria-describedby="{{ fid }}-msg"
+      {{- _attrs(attrs) }}>
+      {%- if placeholder %}
+        <option value=""{% if selected is none or selected == '' %} selected{% endif %} disabled>{{ placeholder }}</option>
+      {%- endif %}
+      {%- for value, text in options %}
+        <option value="{{ value }}"{% if selected is not none and (value | string) == (selected | string) %} selected{% endif %}>{{ text }}</option>
+      {%- endfor %}
+    </select>
+    {{ _message(fid, help, error) }}
+  </div>
+{%- endmacro %}
