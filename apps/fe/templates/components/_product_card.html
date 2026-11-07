@@ -1,0 +1,77 @@
+{#
+  상품 카드: 이미지 · 이름 · 가격 · 상태 뱃지
+  사용: {% from "components/_product_card.html" import product_card, status_badge, won %}
+
+  product (dict) 필드
+  - name        상품명 (필수)
+  - price       가격. 숫자 또는 숫자 문자열 (Firebase에서 문자열로 와도 된다)
+  - img_path    업로드 이미지 파일명. static/uploads/ 아래에서 찾는다
+  - sale_status 판매 상태: sale(판매중) | hold(예약중) | done(거래 완료). 없으면 sale
+                ※ DB의 status 필드는 '상품 상태(최상/상/중/하)'라서 이름을 따로 둔다. BE와 협의
+  - address     거래 장소 (선택)
+  - likes       찜 수 (선택)
+
+  인자
+  - href:      카드를 눌렀을 때 갈 주소. 예) url_for('product_detail', name=p.name)
+  - image:     이미지 주소를 직접 줄 때 (시안용 더미 등). 주면 img_path보다 우선
+  - show_sale: 판매중 뱃지도 카드에 표시할지. 시안은 판매중일 때 뱃지를 달지 않아 기본 false
+
+  그리드 예) <div class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
+              {% for p in products %}{{ product_card(p, url_for('product_detail', name=p.name)) }}{% endfor %}
+            </div>
+#}
+
+{# 18000 -> "18,000원". 숫자가 아니면 그대로 출력 #}
+{% macro won(value) -%}
+  {%- set s = (value | string) | replace(',', '') | trim -%}
+  {%- if s and s.lstrip('-').isdigit() -%}{{ '{:,}'.format(s | int) }}원{%- else -%}{{ value }}{%- endif -%}
+{%- endmacro %}
+
+{# 판매 상태 뱃지. 상세 화면 등에서도 단독으로 쓴다 #}
+{% macro status_badge(status, class='') -%}
+  {%- if status == 'hold' -%}
+    <span class="tag-hold {{ class }}">예약중</span>
+  {%- elif status == 'done' -%}
+    <span class="stamp solid {{ class }}">BOUGHT IT</span>
+  {%- else -%}
+    <span class="tag-sale {{ class }}">판매중</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro product_card(product, href='#', image=none, show_sale=false) -%}
+  {%- set status = product.sale_status or 'sale' -%}
+  {%- set src = image or (url_for('static', filename='uploads/' ~ product.img_path) if product.img_path else none) -%}
+  <article class="slip min-w-0">
+    <a href="{{ href }}" class="block" aria-label="{{ product.name }} 상세 보기">
+      <div class="ph relative aspect-square max-w-full overflow-hidden">
+        {%- if src %}
+          <img src="{{ src }}" alt="" loading="lazy"
+               class="h-full w-full object-cover {{ 'opacity-50' if status == 'done' }}">
+        {%- else %}
+          <span class="center text-sm text-muted">이미지 없음</span>
+        {%- endif %}
+        {%- if status == 'done' %}
+          {{ status_badge('done', 'absolute bottom-3 left-3') }}
+        {%- elif status == 'hold' or show_sale %}
+          {{ status_badge(status, 'absolute bottom-2.5 left-2.5') }}
+        {%- endif %}
+      </div>
+    </a>
+    <div class="space-y-1.5 p-3">
+      <h3 class="font-semibold leading-snug">
+        <a href="{{ href }}" class="hover:text-brandink">{{ product.name }}</a>
+      </h3>
+      <div class="row text-sm">
+        <span class="text-muted">가격</span><span class="leader"></span>
+        <span class="num text-[15px] text-brandink">{{ won(product.price) }}</span>
+      </div>
+      {%- if product.address or product.likes is defined %}
+        <p class="flex justify-between gap-2 text-xs text-muted">
+          <span class="truncate">{{ product.address or '' }}</span>
+          {%- if product.likes is defined %}<span class="shrink-0 font-mono">찜 {{ product.likes }}</span>{% endif %}
+        </p>
+      {%- endif %}
+      {{ caller() if caller }}
+    </div>
+  </article>
+{%- endmacro %}

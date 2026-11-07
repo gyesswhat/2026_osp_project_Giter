@@ -1,0 +1,53 @@
+{#
+  페이지네이션: 이전 · 번호 · 다음
+  사용: {% from "components/_pagination.html" import pagination %}
+        {{ pagination(page, total_pages, 'product_list', q=request.args.get('q')) }}
+
+  인자
+  - page:        현재 페이지 (1부터)
+  - total_pages: 전체 페이지 수. 1 이하면 아무것도 그리지 않는다
+  - endpoint:    링크를 만들 라우트 함수 이름 (url_for에 그대로 넘긴다)
+  - window:      현재 페이지 양옆으로 보여 줄 번호 개수 (기본 2 → 최대 5개)
+  - 나머지 키워드 인자: 검색어·필터 등 유지할 쿼리 값. 값이 비어 있으면 빼고 넘긴다
+#}
+{% macro pagination(page, total_pages, endpoint, window=2) -%}
+  {%- set page = page | int -%}
+  {%- set total = total_pages | int -%}
+  {%- if total > 1 -%}
+    {%- set args = {} -%}
+    {%- for k, v in kwargs.items() if v not in (none, '') -%}{%- set _ = args.update({k: v}) -%}{%- endfor -%}
+    {%- set start = [1, page - window] | max -%}
+    {%- set end = [total, page + window] | min -%}
+    <nav class="mt-12 flex items-center justify-center gap-1 text-sm" aria-label="페이지">
+      {%- if page > 1 %}
+        <a href="{{ url_for(endpoint, page=page - 1, **args) }}" class="btn-quiet" rel="prev">이전</a>
+      {%- else %}
+        <span class="btn-quiet pointer-events-none opacity-40" aria-disabled="true">이전</span>
+      {%- endif %}
+
+      {%- if start > 1 %}
+        <a href="{{ url_for(endpoint, page=1, **args) }}" class="num flex h-9 w-9 items-center justify-center rounded hover:bg-tint">1</a>
+        {%- if start > 2 %}<span class="px-1 text-muted" aria-hidden="true">…</span>{% endif %}
+      {%- endif %}
+
+      {%- for n in range(start, end + 1) %}
+        {%- if n == page %}
+          <span class="num flex h-9 w-9 items-center justify-center rounded bg-brand text-onbrand" aria-current="page">{{ n }}</span>
+        {%- else %}
+          <a href="{{ url_for(endpoint, page=n, **args) }}" class="num flex h-9 w-9 items-center justify-center rounded hover:bg-tint">{{ n }}</a>
+        {%- endif %}
+      {%- endfor %}
+
+      {%- if end < total %}
+        {%- if end < total - 1 %}<span class="px-1 text-muted" aria-hidden="true">…</span>{% endif %}
+        <a href="{{ url_for(endpoint, page=total, **args) }}" class="num flex h-9 w-9 items-center justify-center rounded hover:bg-tint">{{ total }}</a>
+      {%- endif %}
+
+      {%- if page < total %}
+        <a href="{{ url_for(endpoint, page=page + 1, **args) }}" class="btn-quiet" rel="next">다음</a>
+      {%- else %}
+        <span class="btn-quiet pointer-events-none opacity-40" aria-disabled="true">다음</span>
+      {%- endif %}
+    </nav>
+  {%- endif -%}
+{%- endmacro %}

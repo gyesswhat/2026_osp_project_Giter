@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button, input %}
+{% set active_tab = '' %}
+
+{% block title %}회원가입 | BoughtIT{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="auth-wrapper" data-screen="signup">
+  <div class="text-center mb-8">
+    <h1 class="page-title">회원가입</h1>
+  </div>
+
+  <div class="panel p-6 sm:p-8">
+    <form action="" method="post" class="space-y-6">
+      {# 아이디 입력 및 중복확인 #}
+      <div class="flex items-end gap-2">
+        <div class="flex-1">
+          {{ input(
+              name='user_id',
+              label='아이디',
+              type='text',
+              placeholder='아이디를 입력하세요',
+              required=true
+          ) }}
+        </div>
+        {{ button('중복 확인', variant='outline', type='button', class='shrink-0 h-[38px] px-3') }}
+      </div>
+
+      {# 비밀번호 입력 #}
+      {{ input(
+          name='password',
+          label='비밀번호',
+          type='password',
+          placeholder='비밀번호를 입력하세요',
+          help='영문과 숫자를 섞어 8자리 이상 입력해 주세요.',
+          required=true
+      ) }}
+
+      {# 비밀번호 확인 #}
+      {{ input(
+          name='password_confirm',
+          label='비밀번호 확인',
+          type='password',
+          placeholder='비밀번호를 다시 입력하세요',
+          required=true
+      ) }}
+
+      {# 구분선 #}
+      <div class="tear my-2"></div>
+
+      {# 이화인 메일 인증 #}
+      <div>
+        <label for="email" class="label">
+          이화인 메일 인증 <span class="text-stamp" aria-hidden="true">*</span>
+        </label>
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <input id="email" name="email" type="email" placeholder="example@ewha.ac.kr" required class="field">
+          </div>
+          {{ button('인증 요청', variant='outline', type='button', class='shrink-0 h-[38px] px-3') }}
+        </div>
+        <p class="help">BoughtIT은 이화인만 가입할 수 있어요. ewha.ac.kr 또는 ewhain.net 메일로 인증해 주세요.</p>
+        <p id="email-msg" class="error" hidden></p>
+      </div>
+
+      {# 인증번호 입력 칸 #}
+      <div>
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <input id="auth_code" name="auth_code" type="text" placeholder="000000" class="field">
+          </div>
+          {{ button('코드 확인', variant='primary', type='button', class='shrink-0 h-[38px] px-3') }}
+          {{ button('인증 완료', variant='primary', type='button', disabled=true, class='shrink-0 h-[38px] px-3', attrs={'hidden': true}) }}
+        </div>
+
+        {# 1) 인증 요청 후 노출되는 타이머 #}
+        <p id="code-timer-msg" class="help" hidden>
+          메일로 보낸 6자리 코드를 입력해 주세요. 남은 시간 <span class="num font-bold">05:00</span>
+        </p>
+
+        {# 2) 코드 불일치 시 에러 문구 #}
+        <p id="code-error-msg" class="error" hidden>
+          코드는 숫자 6자리예요. 메일을 다시 확인해 주세요.
+        </p>
+
+        {# 3) 인증 완료 문구 #}
+        <p id="code-success-msg" class="help font-semibold text-brand" hidden>
+          이화인 메일 인증이 끝났어요.
+        </p>
+      </div>
+
+      {# 전화번호 (선택) #}
+      {{ input(
+          name='phone',
+          label='전화번호',
+          type='tel',
+          placeholder='010-0000-0000',
+          optional=true
+      ) }}
+
+      {# 가입하기 버튼 #}
+      <div class="pt-2">
+        {{ button('가입하기', variant='primary', type='submit', disabled=true, class='w-full text-base py-3') }}
+        <p id="submit-help-msg" class="help text-center mt-2" hidden>
+          메일 인증을 마치면 가입할 수 있어요.
+        </p>
+      </div>
+    </form>
+  </div>
+
+  {# 하단 링크 #}
+  <div class="mt-6 text-center text-sm text-muted">
+    이미 계정이 있나요?
+    <a href="{{ url_for('auth_login') }}" class="font-semibold text-brand hover:underline ml-1">
+      로그인
+    </a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,18 @@
+@charset "UTF-8";
+
+.auth-wrapper {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+/* (구형 브라우저 대응이 필요한 경우를 위한 fallback) */
+@supports not (scrollbar-gutter: stable) {
+  html {
+    overflow-y: scroll;
+  }
+}
