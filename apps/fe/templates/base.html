@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}BoughtIT 벗잇{% endblock %}</title>
+
+  {# 글꼴: 본문 Pretendard, 로고·도장 영문 Black Han Sans #}
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
+
+  {# Tailwind CDN + 색상 토큰 #}
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="{{ url_for('static', filename='js/tailwind.config.js') }}"></script>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+
+  {# 공통 컴포넌트 클래스. Tailwind CDN은 이 블록 안의 @apply만 처리하므로 외부 파일로 빼지 않는다.
+     수정은 이다영 담당 (FE 마일스톤 규칙) #}
+  <style type="text/tailwindcss">
+    @layer components {
+      .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-sm px-4 py-2.5 text-sm font-semibold transition-colors; }
+      .btn-primary { @apply btn bg-brand text-onbrand hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40; }
+      .btn-outline { @apply btn border border-brandink text-brandink hover:bg-tint disabled:cursor-not-allowed disabled:opacity-40; }
+      .btn-quiet { @apply btn text-muted hover:text-ink; }
+      .btn-head { @apply btn bg-bg text-brandink hover:bg-tint; }
+      .field { @apply w-full rounded-none border-0 border-b border-dashed border-muted bg-transparent px-0.5 py-2 text-[15px] text-ink placeholder:text-muted focus:border-b-2 focus:border-solid focus:border-brandink focus:outline-none; }
+      .field[aria-invalid="true"] { @apply border-solid border-stamp; }
+      .label { @apply mb-1.5 block text-sm font-semibold; }
+      .help { @apply mt-1.5 text-sm text-muted; }
+      .error { @apply mt-1.5 text-sm font-semibold text-stamp; }
+      .chip { @apply inline-flex items-center rounded-sm border border-dashed border-muted px-3 py-1.5 text-sm font-medium text-ink hover:border-brandink disabled:cursor-not-allowed disabled:opacity-40; }
+      .chip[aria-pressed="true"] { @apply border-solid border-brand bg-brand text-onbrand; }
+      .tag-sale { @apply inline-flex items-center rounded-sm bg-tint px-1.5 py-0.5 text-xs font-bold text-brandink; }
+      .tag-hold { @apply inline-flex items-center rounded-sm bg-hl px-1.5 py-0.5 text-xs font-bold text-onhl; }
+      .tag-bid { @apply inline-flex items-center rounded-sm bg-stamptint px-1.5 py-0.5 text-xs font-bold text-stamp; }
+      .page-title { @apply text-[28px] font-extrabold leading-tight tracking-tight sm:text-[34px]; }
+      .num { @apply font-mono font-bold tabular-nums; }
+    }
+  </style>
+
+  {# 화면 전용 CSS: {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/product.css') }}">{% endblock %} #}
+  {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen">
+  {% include "components/_header.html" %}
+
+  <main class="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:pt-10">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-6 space-y-2" role="status">
+          {% for category, message in messages %}
+            <p class="panel px-4 py-3 text-sm font-semibold {{ 'text-stamp' if category == 'error' else 'text-brandink' }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="mx-auto max-w-6xl px-4 pb-10">
+    <div class="tear flex flex-wrap items-baseline justify-between gap-2 pt-4 font-mono text-xs text-muted">
+      <span>BoughtIT(벗잇)</span><span>벗과 벗을 잇는 이화 마켓</span>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
