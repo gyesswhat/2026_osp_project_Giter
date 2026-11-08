@@ -32,3 +32,8 @@
 }
 .dual input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--tint); }
 .dual input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--tint); }
+
+/* ---------- 상품 등록: 사진 올리기 ---------- */
+/* 숨긴 파일 칸에 키보드 초점이 오면 끌어다 놓는 상자에 테두리를 그린다 */
+[data-photo-input]:focus-visible + .photo-drop { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+.photo-drop.is-over { border-color: var(--brand); background: var(--tint); }

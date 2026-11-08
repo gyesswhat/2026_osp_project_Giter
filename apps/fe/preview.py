@@ -9,7 +9,7 @@ BE 연동 전에 base.html과 공통 컴포넌트, 각자 만든 화면을 확�
 
 import math
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from jinja2 import TemplateNotFound
 
 app = Flask(__name__)
@@ -133,10 +133,43 @@ def product_detail():
     return render_template("product/detail.html", product=product, liked=False)
 
 
+def product_new():
+    """상품 등록 미리보기. POST면 서버 쪽 확인을 흉내 내고, 통과하면 더미 목록 맨 앞에 넣는다 (사진 파일은 저장하지 않음)"""
+    if request.method == "GET":
+        return render_template("product/new.html")
+
+    form = request.form
+    errors = {}
+    if not request.files.get("picture") or not request.files["picture"].filename:
+        errors["picture"] = "대표 사진을 올려 주세요."
+    for field, text in [("seller", "판매자 ID를 입력해 주세요."), ("name", "상품명을 입력해 주세요."),
+                        ("address", "거래할 주소를 입력해 주세요."), ("description", "상세 설명을 입력해 주세요.")]:
+        if not form.get(field, "").strip():
+            errors[field] = text
+    if _int(form.get("price")) is None:
+        errors["price"] = "가격을 숫자로 입력해 주세요."
+    if form.get("status") not in ("최상", "상", "중", "하"):
+        errors["status"] = "상품 상태를 골라 주세요."
+    if any(p["name"] == form.get("name", "").strip() for p in PREVIEW_PRODUCTS):
+        errors["name"] = "같은 이름의 상품이 이미 있어요. 이름을 조금 바꿔 주세요."  # Firebase에서 상품명이 키라서
+    if errors:
+        return render_template("product/new.html", form=form, errors=errors), 400
+
+    product = {k: form.get(k, "").strip() for k in ("seller", "name", "address", "status", "description")}
+    product.update(price=_int(form["price"]), likes=0, sale_status="sale", kind="fixed")
+    PREVIEW_PRODUCTS.insert(0, product)
+    flash("상품을 등록했어요.")
+    return redirect(url_for("product_detail", name=product["name"]))
+
+
+product_new.methods = ["GET", "POST"]
+
+
 # 더미 데이터가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
     "product_list": product_list,
     "product_detail": product_detail,
+    "product_new": product_new,
 }
 
 
