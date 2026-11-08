@@ -48,7 +48,10 @@ PREVIEW_PRODUCTS = [
     {"name": "컴퓨터구조 및 설계 5판", "seller": "baekkot21", "price": "18000", "address": "ECC 앞", "status": "상",
      "likes": 12, "sale_status": "sale", "kind": "fixed", "date": "2026.10.06",
      "description": "지난 학기 컴퓨터구조 수업에서 쓴 교재입니다. 1장부터 4장까지 연필 필기가 조금 있고, "
-                    "형광펜은 쓰지 않았어요. 표지 모서리가 살짝 닳은 것 말고는 깨끗합니다."},
+                    "형광펜은 쓰지 않았어요. 표지 모서리가 살짝 닳은 것 말고는 깨끗합니다.",
+     "places": [{"building": "ECC", "detail": "8번 출구 앞"}, {"building": "중앙도서관", "detail": "1층 로비"},
+                {"building": "기타", "detail": "이대역 2번 출구"}],
+     "slots": ["10.12 (월) 13:00", "10.12 (월) 15:00", "10.13 (화) 12:00", "10.13 (화) 16:30", "10.14 (수) 11:00"]},
     {"name": "아이패드 에어 5세대 64GB", "seller": "apple_ewha", "price": 435000, "address": "포스코관", "status": "최상",
      "likes": 31, "sale_status": "sale", "kind": "bid", "date": "2026.10.06"},
     {"name": "이화 과잠 M 사이즈", "seller": "gwajam_22", "price": 25000, "address": "학생문화관", "status": "상",
@@ -123,9 +126,17 @@ def product_list():
     )
 
 
+def product_detail():
+    """상품 상세 미리보기. ?name=상품명 으로 찾고, 없으면 첫 상품을 보여 준다"""
+    name = request.args.get("name", "")
+    product = next((p for p in PREVIEW_PRODUCTS if p["name"] == name), PREVIEW_PRODUCTS[0])
+    return render_template("product/detail.html", product=product, liked=False)
+
+
 # 더미 데이터가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
     "product_list": product_list,
+    "product_detail": product_detail,
 }
 
 

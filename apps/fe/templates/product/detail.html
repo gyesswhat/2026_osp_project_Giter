@@ -1,0 +1,154 @@
+{#
+  상품 상세 (라우트: product_detail)
+
+  BE가 넘길 값
+  - product (dict)
+    - name         상품명
+    - seller       판매자 ID
+    - price        가격. 숫자 또는 숫자 문자열
+    - address      주소 (거래 기본 장소)
+    - status       상품 상태: 최상 | 상 | 중 | 하
+    - description  상세 설명 (선택)
+    - img_path     업로드 이미지 파일명. static/uploads/ 아래에서 찾는다 (선택)
+    - sale_status  판매 상태: sale | hold | done. 없으면 sale
+    - kind         fixed(가격 정해진 물건) | bid(가격 제안 받는 중). 없으면 fixed
+    - date         등록일 문자열 (선택). 예) 2026.10.06
+    - likes        찜 수 (선택)
+    - places       판매자가 열어 둔 거래 장소 [{'building': 'ECC', 'detail': '8번 출구 앞'}, ...] (선택)
+                   없으면 address 하나를 장소 칩으로 보여 준다
+    - slots        판매자가 열어 둔 거래 시간 문자열 목록 ['10.12 (월) 13:00', ...] (선택)
+  - image: 이미지 주소를 직접 줄 때 (시안용 더미 등). 주면 img_path보다 우선 (선택)
+  - liked: 로그인한 사용자가 찜했는지 (선택)
+
+  약속 신청 폼은 name(상품명), place(장소 칩 값 = places 순번), slot(시간 칩 값 = slots 순번)을 보낸다.
+  처리 라우트가 아직 없어서 action을 비워 두었고, 그동안은 product.js가 제출을 막고 신청 완료 문구만 보여 준다.
+  BE 연동 시 action에 url_for(...)를 채우고 form의 data-demo 속성을 지우면 된다.
+  장소·시간 칩은 common.js의 칩 그룹 동작(data-chip-group)을 그대로 쓴다. 굵은 건물명을 넣으려고 매크로 대신 직접 그렸다.
+#}
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button %}
+{% from "components/_product_card.html" import status_badge, won %}
+{% set active_tab = 'product' %}
+
+{% set p = product %}
+{% set sale = p.sale_status or 'sale' %}
+{% set src = image or (url_for('static', filename='uploads/' ~ p.img_path) if p.img_path else none) %}
+{% set places = p.places or ([{'building': p.address, 'detail': ''}] if p.address else []) %}
+{% set slots = p.slots or [] %}
+{% set grades = {'최상': '거의 새것', '상': '사용감 적음', '중': '사용감 있음', '하': '흠집·고장 있음'} %}
+
+{% block title %}{{ p.name }} | BoughtIT{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/product.css') }}">{% endblock %}
+
+{% block content %}
+  <div class="grid gap-8 md:grid-cols-2 md:gap-12">
+    {# 사진 #}
+    <div class="ph relative aspect-square max-w-full overflow-hidden rounded">
+      {% if src %}
+        <img src="{{ src }}" alt="{{ p.name }} 사진" class="h-full w-full object-cover {{ 'opacity-50' if sale == 'done' }}">
+      {% else %}
+        <span class="center text-muted">이미지 없음</span>
+      {% endif %}
+      {% if sale == 'done' %}{{ status_badge('done', 'absolute bottom-4 left-4') }}{% endif %}
+    </div>
+
+    <div class="min-w-0">
+      <div class="flex flex-wrap gap-1.5">
+        {% if sale != 'done' %}{{ status_badge(sale) }}{% endif %}
+        {% if p.kind == 'bid' %}<span class="tag-bid">가격 제안 받는 중</span>{% endif %}
+      </div>
+      <h1 class="page-title mt-3 break-keep">{{ p.name }}</h1>
+      <p class="num mt-3 text-[34px] leading-none text-brandink">
+        {%- if p.kind == 'bid' and not (p.price | int) %}첫 제안을 기다려요{% else %}{{ won(p.price) }}{% endif -%}
+      </p>
+      {% if p.kind == 'bid' and (p.price | int) %}<p class="mt-1 text-sm text-muted">지금 최고 제안가</p>{% endif %}
+
+      {# 영수증 줄: 판매자 · 주소 · 상품 상태 · 등록일 · 찜 #}
+      <dl class="mt-6 space-y-2 border-y border-dashed border-line py-4 text-[15px]">
+        <div class="row"><dt class="text-muted">판매자</dt><span class="leader"></span>
+          <dd class="font-semibold">{{ p.seller }}</dd></div>
+        <div class="row"><dt class="text-muted">주소</dt><span class="leader"></span>
+          <dd class="min-w-0 truncate">{{ p.address or '-' }}</dd></div>
+        <div class="row"><dt class="text-muted">상품 상태</dt><span class="leader"></span>
+          <dd><span class="font-semibold">{{ p.status or '-' }}</span>
+            {%- if grades[p.status] %} <span class="text-sm text-muted">· {{ grades[p.status] }}</span>{% endif %}</dd></div>
+        {% if p.date %}
+          <div class="row"><dt class="text-muted">등록일</dt><span class="leader"></span>
+            <dd class="font-mono">{{ p.date }}</dd></div>
+        {% endif %}
+        {% if p.likes is defined %}
+          <div class="row"><dt class="text-muted">찜</dt><span class="leader"></span>
+            <dd class="font-mono" data-like-count>{{ p.likes }}</dd></div>
+        {% endif %}
+      </dl>
+
+      {% if p.description %}
+        <p class="mt-5 max-w-prose whitespace-pre-line break-keep">{{ p.description }}</p>
+      {% else %}
+        <p class="mt-5 text-muted">판매자가 적은 설명이 없어요.</p>
+      {% endif %}
+
+      <div class="mt-6 flex flex-wrap gap-2">
+        {{ button('판매자와 채팅', href=url_for('chat_room')) }}
+        <button type="button" class="btn-outline" aria-pressed="{{ 'true' if liked else 'false' }}" data-like-button>
+          {{- '♥ 찜한 물건' if liked else '♡ 찜하기' -}}
+        </button>
+        {{ button('판매자 리뷰 보기', variant='quiet', href=url_for('review_list', seller=p.seller)) }}
+      </div>
+    </div>
+  </div>
+
+  {# 약속 잡기: 판매자가 열어 둔 장소·시간 칩에서 하나씩 고른다 #}
+  {% if sale != 'done' %}
+    <form id="reserveForm" class="panel mt-10 p-5 sm:p-7" method="post" action="" data-demo>
+      <input type="hidden" name="name" value="{{ p.name }}">
+      <h2 class="text-xl font-extrabold tracking-tight">약속 잡기</h2>
+      <p class="mt-1 text-sm text-muted">판매자가 열어 둔 장소와 시간 중에서 고르면 채팅 없이도 약속을 신청할 수 있어요.</p>
+
+      <div class="mt-5 grid gap-6 md:grid-cols-2">
+        <div>
+          <p id="placeLabel" class="label">장소</p>
+          {% if places %}
+            <div id="cg-place" class="flex flex-wrap gap-2" role="group" aria-labelledby="placeLabel"
+                 data-chip-group data-name="place" data-multiple="false" data-required="false">
+              {% for pl in places %}
+                <button type="button" class="chip" value="{{ loop.index0 }}" aria-pressed="false"
+                        data-text="{{ pl.building }}{{ ' ' ~ pl.detail if pl.detail }}">
+                  <span class="font-bold">{{ pl.building }}</span>{% if pl.detail %}&nbsp;{{ pl.detail }}{% endif %}
+                </button>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-sm text-muted">열어 둔 장소가 없어요. 채팅으로 정해 주세요.</p>
+          {% endif %}
+        </div>
+        <div>
+          {% if slots %}
+            <p id="slotLabel" class="label">시간</p>
+            <div id="cg-slot" class="flex flex-wrap gap-2" role="group" aria-labelledby="slotLabel"
+                 data-chip-group data-name="slot" data-multiple="false" data-required="false">
+              {% for s in slots %}
+                <button type="button" class="chip font-mono" value="{{ loop.index0 }}" aria-pressed="false" data-text="{{ s }}">{{ s }}</button>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="label">시간</p>
+            <p class="text-sm text-muted">열어 둔 시간이 없어요. 채팅으로 정해 주세요.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="tear mt-6 flex flex-wrap items-center gap-3 pt-5">
+        {% if places and slots %}
+          <button type="submit" class="btn-primary" disabled data-reserve-button>약속 신청</button>
+          <p class="text-sm text-muted" aria-live="polite" data-reserve-msg>장소와 시간을 하나씩 골라 주세요.</p>
+        {% else %}
+          {{ button('채팅으로 약속 정하기', variant='outline', href=url_for('chat_room')) }}
+          <p class="text-sm text-muted">판매자가 열어 둔 장소나 시간이 없어서 바로 신청할 수 없어요.</p>
+        {% endif %}
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/product.js') }}"></script>{% endblock %}

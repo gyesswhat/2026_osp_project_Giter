@@ -70,3 +70,49 @@
 
   render();
 })();
+
+// ---------- 상품 상세: 찜 버튼 ----------
+// 지금은 화면에서만 바뀐다. BE 연동 시 여기서 찜 API를 부르면 된다.
+(() => {
+  const btn = document.querySelector('[data-like-button]');
+  if (!btn) return;
+  const count = document.querySelector('[data-like-count]');
+  btn.addEventListener('click', () => {
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', String(on));
+    btn.textContent = on ? '♥ 찜한 물건' : '♡ 찜하기';
+    if (count) count.textContent = Math.max(0, +count.textContent + (on ? 1 : -1));
+  });
+})();
+
+// ---------- 상품 상세: 약속 잡기 ----------
+// 장소와 시간 칩을 하나씩 고르면 신청 버튼이 켜진다.
+(() => {
+  const form = document.getElementById('reserveForm');
+  if (!form) return;
+  const btn = form.querySelector('[data-reserve-button]');
+  const msg = form.querySelector('[data-reserve-msg]');
+  if (!btn) return; // 장소나 시간이 없어서 채팅 안내만 있는 경우
+  const picked = (name) => form.querySelector(`[data-name="${name}"] .chip[aria-pressed="true"]`);
+  let sent = false;
+
+  function render() {
+    const place = picked('place');
+    const slot = picked('slot');
+    btn.disabled = sent || !(place && slot);
+    btn.textContent = sent ? '약속 신청됨' : '약속 신청';
+    msg.textContent = sent ? '약속을 신청했어요. 판매자가 수락하면 마이의 약속 탭에 확정으로 표시돼요.'
+      : place && slot ? `${place.dataset.text}, ${slot.dataset.text}에 만나요.`
+      : '장소와 시간을 하나씩 골라 주세요.';
+  }
+
+  form.addEventListener('chipchange', () => { if (!sent) render(); });
+  form.addEventListener('submit', (e) => {
+    if (!('demo' in form.dataset)) return; // BE 연동 후에는 그대로 전송
+    e.preventDefault();
+    sent = true;
+    form.querySelectorAll('.chip').forEach((c) => { c.disabled = true; });
+    render();
+  });
+  render();
+})();
