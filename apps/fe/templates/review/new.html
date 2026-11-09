@@ -34,7 +34,10 @@
       </div>
 
       <!-- 리뷰 작성 폼 -->
-      <form class="mt-7 space-y-7">
+      <form method="post" action="" enctype="multipart/form-data" class="mt-7 space-y-7">
+        <!-- 리뷰 작성자 및 상품 정보 -->
+         <input type="hidden" name="product_name" value="전기 주전자 1L">
+         <input type="hidden" name="reviewer" value="{{ session.get('id', '') }}">
 
         <!-- 별점 -->
         <fieldset>
@@ -118,7 +121,7 @@
             취소
           </a>
 
-          <button type="button"
+          <button type="submit"
                   class="bg-brand px-5 py-3 text-sm font-bold text-white">
             리뷰 등록
           </button>

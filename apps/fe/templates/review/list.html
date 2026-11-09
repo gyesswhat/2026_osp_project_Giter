@@ -25,8 +25,25 @@
         리뷰 쓰기
       </a>
     </div>
-
-<ul class="panel mt-6">
+    <!-- 특정 판매자 리뷰 정보 (기본 숨김) -->
+    <div id="sellerBar"
+         class="panel mt-6 flex flex-wrap items-center gap-3 p-3 sm:p-4"
+         hidden>
+      <p class="min-w-0 flex-1">
+        <span class="mr-1 font-semibold text-stamp">판매자</span>
+        <span id="sellerName" class="font-bold"></span>
+        님이 받은 리뷰
+        <span id="sellerCount" class="num"></span>개,
+        평균 별점
+        <span id="sellerAvg" class="num text-brandink"></span>
+      </p>
+      <button type="button"
+              id="sellerClear"
+              class="btn-outline shrink-0">
+        전체 리뷰 보기
+      </button>
+    </div>
+<ul id="reviewList" class="panel mt-6">
 <li class="flex items-center gap-4 px-5 py-5 border-b border-dashed border-line">
   <!-- 상품 이미지 -->
   <span class="ph relative review-thumbnail rounded-sm text-3xl"
@@ -214,6 +231,13 @@
 </li>
 
     </ul>
+    
+    <!-- 판매자 리뷰가 없을 때 표시 (기본 숨김) -->
+    <p id="reviewEmpty"
+       class="panel mt-6 p-8 text-center text-muted"
+       hidden>
+      이 판매자가 받은 리뷰가 아직 없어요.
+    </p>
 
     <nav class="mt-10 flex items-center justify-center gap-3 text-sm"
      aria-label="페이지">
