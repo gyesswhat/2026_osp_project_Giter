@@ -1,5 +1,6 @@
 # 커밋 메시지 형식을 커밋할 때 검사한다.
-# 설치: brew install lefthook && lefthook install
+# 설치: brew install lefthook (macOS) / npm i -g lefthook 또는 pip install lefthook (Windows)
+#       설치 후 lefthook install
 # 한 번만 건너뛰기: LEFTHOOK=0 git commit ...
 
 commit-msg:
