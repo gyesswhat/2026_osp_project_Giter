@@ -56,8 +56,8 @@ body:
       label: 환경
       description: 해당하는 것만 적어주세요
       placeholder: |
-        - 기기/OS: iPhone 15, iOS 17.4 / Pixel 7, Android 14
-        - 앱 버전 또는 커밋: 1.2.0 (abc1234)
+        - 브라우저/OS: Chrome 130, macOS 15 / Edge, Windows 11
+        - 커밋: abc1234
         - 서버 환경: local / dev / prod
     validations:
       required: false
