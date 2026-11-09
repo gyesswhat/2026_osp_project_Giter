@@ -1,0 +1,13 @@
+# 경로별 담당자. PR에서 해당 경로를 바꾸면 담당자가 리뷰어로 자동 지정된다.
+# 아래쪽 규칙이 위쪽 규칙보다 우선한다. @아이디를 실제 GitHub 아이디로 바꾼다.
+# 파일 이름은 반드시 CODEOWNERS (S 포함)여야 동작한다.
+
+# 1. 기본 담당자 (레포 전체)
+*               @gyesswhat
+
+# 2. 영역별 담당자
+/apps/fe/       @dev-ldy03 @pyprei @jannie124
+/apps/be/       @gyesswhat @SoJeong5 @m00nsh
+
+# 3. 공통 설정
+/.github/       @gyesswhat

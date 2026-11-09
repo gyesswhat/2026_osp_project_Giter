@@ -1,0 +1,71 @@
+name: 🛠 Task
+description: 버그·기능이 아닌 일반 작업 (리팩터링, 설정, 문서, 조사 등)
+title: "[Task] "
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        기능 추가도 버그 수정도 아닌 작업에 사용합니다.
+        예) 의존성 업그레이드, CI 설정, 리팩터링, 문서화, 기술 조사, 배포 준비
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      options:
+        - FE
+        - BE
+        - 공통 (CI, 설정, 문서)
+        - 여러 영역에 걸침 · 미정
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 작업 종류
+      options:
+        - 리팩터링
+        - 설정 / 빌드 / CI
+        - 의존성 업그레이드
+        - 문서화
+        - 기술 조사 (spike)
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 작업 내용
+      description: 무엇을 해야 하는지, 왜 필요한지
+    validations:
+      required: true
+
+  - type: textarea
+    id: todo
+    attributes:
+      label: 할 일
+      description: 나눌 수 있으면 체크리스트로
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 무엇이 되면 닫을 수 있나요?
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 참고 자료
+      description: 관련 이슈/PR, 링크, 사전 논의
+    validations:
+      required: false
