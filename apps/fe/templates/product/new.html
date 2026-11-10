@@ -1,0 +1,106 @@
+{#
+  상품 등록 (라우트: product_new)
+
+  폼: POST multipart/form-data → url_for('product_new')
+  보내는 필드 (BE app.py submit_item 과 이름을 맞췄다)
+  - seller       판매자 ID. 로그인 상태면 session['id']로 채우고 고칠 수 없게 둔다
+  - name         상품명
+  - price        가격. 숫자만 (쉼표는 화면에서만 보이고 보낼 때 뺀다)
+  - address      주소 (거래 기본 장소)
+  - status       상품 상태: 최상 | 상 | 중 | 하
+  - description  상세 설명
+  - picture      대표 사진 파일 (JPG, PNG, 5MB 이하)
+
+  BE가 넘길 값 (선택, 서버 검증에 실패해 다시 그릴 때)
+  - form:   사용자가 입력했던 값 dict. 예) request.form
+  - errors: 필드별 오류 메시지 dict. 예) {'price': '가격은 숫자로 입력해 주세요.'}
+  ※ 사진 파일은 브라우저가 다시 채워 주지 않으므로 오류 후에는 다시 골라야 한다.
+
+  고정가/경매 전환, 거래 가능 장소·시간은 11/13 이후 작업 (fe_milestone.md)
+#}
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button, input, textarea, chip_group %}
+{% set active_tab = 'product' %}
+
+{% set f = form or {} %}
+{% set err = errors or {} %}
+{% set login_id = session.get('id') %}
+{% set grades = [('최상', '최상'), ('상', '상'), ('중', '중'), ('하', '하')] %}
+
+{% block title %}상품 등록 | BoughtIT{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/product.css') }}">{% endblock %}
+
+{% block content %}
+  <div class="mx-auto max-w-2xl">
+    <h1 class="page-title">상품 등록</h1>
+    <p class="mt-1 break-keep text-muted">사진과 상태를 자세히 적을수록 벗이 믿고 거래할 수 있어요.</p>
+
+    <form id="productNewForm" class="panel mt-8 space-y-6 p-5 sm:p-8" method="post" action="{{ url_for('product_new') }}"
+          enctype="multipart/form-data" novalidate>
+
+      {# 대표 사진: 파일 칸은 숨기고 라벨 전체를 누르거나 끌어다 놓아 고른다 (static/js/product.js) #}
+      <div data-photo>
+        <p id="picture-label" class="label">대표 사진 <span class="text-stamp" aria-hidden="true">*</span></p>
+        <input id="picture" name="picture" type="file" accept="image/jpeg,image/png" class="sr-only"
+               aria-labelledby="picture-label" aria-describedby="picture-msg" data-photo-input>
+        <label for="picture" class="photo-drop flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded border-2 border-dashed border-line bg-bg px-4 py-10 text-center hover:border-brandink"
+               data-photo-drop>
+          <span class="font-semibold text-brandink">사진 올리기</span>
+          <span class="text-sm text-muted">눌러서 고르거나 여기로 끌어다 놓으세요. JPG, PNG 파일, 5MB 이하</span>
+        </label>
+        <div class="relative mt-1 max-w-xs" data-photo-preview hidden>
+          <div class="ph aspect-square overflow-hidden rounded">
+            <img alt="고른 사진 미리보기" class="h-full w-full object-cover" data-photo-img>
+          </div>
+          <p class="mt-2 truncate text-sm text-muted" data-photo-name></p>
+          <div class="mt-2 flex gap-2">
+            <label for="picture" class="btn-outline cursor-pointer">다른 사진</label>
+            {{ button('지우기', variant='quiet', attrs={'data-photo-clear': true}) }}
+          </div>
+        </div>
+        {% if err.picture %}
+          <p id="picture-msg" class="error" role="alert">{{ err.picture }}</p>
+        {% else %}
+          <p id="picture-msg" class="error" hidden></p>
+        {% endif %}
+      </div>
+
+      {% if login_id %}
+        {{ input('seller', '판매자 ID', value=login_id, help='로그인한 ID로 등록돼요.', attrs={'readonly': true}) }}
+      {% else %}
+        {{ input('seller', '판매자 ID', value=f.seller, required=true, error=err.seller,
+                 placeholder='예: ewhain_sw', attrs={'autocomplete': 'username', 'maxlength': 20}) }}
+      {% endif %}
+
+      {{ input('name', '상품명', value=f.name, required=true, error=err.name,
+               placeholder='예: 컴퓨터구조 및 설계 5판', attrs={'maxlength': 40}) }}
+
+      {{ input('price', '가격', value=f.price, required=true, error=err.price, suffix='원', placeholder='0',
+               class='max-w-xs', attrs={'inputmode': 'numeric', 'autocomplete': 'off', 'data-price-input': true}) }}
+
+      {{ input('address', '주소', value=f.address, required=true, error=err.address,
+               placeholder='예: ECC 8번 출구 앞', help='만나서 거래할 기본 장소를 적어 주세요.') }}
+
+      <div>
+        {{ chip_group('status', grades, selected=f.status or none, required=true,
+                      label=('상품 상태 <span class="text-stamp" aria-hidden="true">*</span>' | safe)) }}
+        {% if err.status %}
+          <p id="status-msg" class="error" role="alert">{{ err.status }}</p>
+        {% else %}
+          <p id="status-msg" class="error" hidden></p>
+        {% endif %}
+        <p class="help break-keep">최상 거의 새것 · 상 사용감 적음 · 중 사용감 있음 · 하 흠집·고장 있음</p>
+      </div>
+
+      {{ textarea('description', '상세 설명', value=f.description, rows=5, required=true, error=err.description,
+                  placeholder='사용 기간, 상태, 흠집 여부를 적어 주세요.', attrs={'maxlength': 1000}) }}
+
+      <div class="tear flex justify-end gap-2 pt-6">
+        {{ button('취소', variant='quiet', href=url_for('product_list')) }}
+        {{ button('상품 등록', type='submit') }}
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/product.js') }}"></script>{% endblock %}

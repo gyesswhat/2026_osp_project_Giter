@@ -1,0 +1,105 @@
+{#
+  상품 목록 (라우트: product_list)
+
+  BE가 넘길 값
+  - products:    현재 페이지에 보여 줄 상품 dict 목록 (필드는 components/_product_card.html 주석 참고)
+  - total:       필터를 적용한 전체 상품 수
+  - page:        현재 페이지 (1부터)
+  - total_pages: 전체 페이지 수
+
+  필터는 GET 쿼리로 들어온다. 템플릿은 request.args에서 현재 값을 읽어 화면에 다시 채운다.
+  - q            상품 이름 검색어
+  - sort         new(최신순) | like(인기순) | low(낮은 가격순) | high(높은 가격순)
+  - sale_status  all | sale(판매중) | hold(예약중). 거래 완료(done)는 상품 탭에 보이지 않는다 (시안 기준)
+  - kind         all | fixed(가격 정해진 물건) | bid(가격 제안 받는 중)
+  - price_min    최소 가격(원). 없으면 하한 없음
+  - price_max    최대 가격(원). 없으면 상한 없음
+  - page         페이지 번호. 필터를 바꾸면 1페이지로 돌아간다
+#}
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import chip_group, chip, select %}
+{% from "components/_product_card.html" import product_card %}
+{% from "components/_pagination.html" import pagination %}
+{% set active_tab = 'product' %}
+
+{# 가격 슬라이더 눈금(원). 마지막 칸은 '상한 없음' #}
+{% set price_steps = [0, 5000, 10000, 20000, 30000, 50000, 100000, 200000, 300000, 500000] %}
+{% set last_step = price_steps | length %}
+{% set price_quick = [('전체', 0, last_step), ('1만원 이하', 0, 2), ('1~3만원', 2, 4), ('3~5만원', 4, 5), ('5~10만원', 5, 6), ('10만원 이상', 6, last_step)] %}
+
+{# 쿼리 값 → 슬라이더 칸 번호. 눈금에 없는 값이면 끝 칸으로 둔다 #}
+{% set q_min = request.args.get('price_min', '') %}
+{% set q_max = request.args.get('price_max', '') %}
+{% set ns = namespace(pmin=0, pmax=last_step) %}
+{% for v in price_steps %}
+  {% if q_min | string == v | string %}{% set ns.pmin = loop.index0 %}{% endif %}
+  {% if q_max | string == v | string %}{% set ns.pmax = loop.index0 %}{% endif %}
+{% endfor %}
+
+{# 페이지 링크에 함께 실어 보낼 현재 필터 (page 제외) #}
+{% set filter_args = {} %}
+{% for k in ['q', 'sort', 'sale_status', 'kind', 'price_min', 'price_max'] if request.args.get(k) %}
+  {% set _ = filter_args.update({k: request.args.get(k)}) %}
+{% endfor %}
+
+{% block title %}상품 목록 | BoughtIT{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/product.css') }}">{% endblock %}
+
+{% block content %}
+  <h1 class="page-title">지금 올라온 물건</h1>
+  <p class="mt-1 text-muted">벗이 내놓은 상품 <span class="num text-ink">{{ total | default(products | length) }}</span>개</p>
+
+  <form id="productFilter" method="get" action="{{ url_for('product_list') }}"
+        class="panel mt-6 grid gap-3 p-3 sm:grid-cols-[1fr_auto] sm:p-4" role="search">
+    <div>
+      <label class="sr-only" for="q">상품 이름 검색</label>
+      <input id="q" name="q" type="search" class="field" placeholder="상품 이름으로 검색"
+             value="{{ request.args.get('q', '') }}" autocomplete="off">
+    </div>
+    {{ select('sort', [('new', '최신순'), ('like', '인기순'), ('low', '낮은 가격순'), ('high', '높은 가격순')],
+              selected=request.args.get('sort', 'new'), label='정렬', sr_label=true, attrs={'data-autosubmit': true}) }}
+
+    {{ chip_group('sale_status', [('all', '전체'), ('sale', '판매중'), ('hold', '예약중')],
+                  selected=request.args.get('sale_status', 'all'), label='판매 상태', sr_label=true, required=true,
+                  class='sm:col-span-2') }}
+    {{ chip_group('kind', [('all', '모든 거래 방식'), ('fixed', '가격 정해진 물건'), ('bid', '가격 제안 받는 중')],
+                  selected=request.args.get('kind', 'all'), label='거래 방식', sr_label=true, required=true,
+                  class='sm:col-span-2') }}
+
+    {# 가격: 손잡이 두 개 슬라이더 + 빠른 선택. 칸 번호를 원 단위로 바꿔 price_min/price_max로 보낸다 (static/js/product.js) #}
+    <div class="tear pt-3 sm:col-span-2" data-price-filter data-steps="{{ price_steps | tojson | forceescape }}">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <p id="priceLabel" class="text-sm font-semibold">가격</p>
+        <p class="num text-sm text-brandink" data-price-text aria-live="polite">전체</p>
+      </div>
+      <div class="dual mt-2">
+        <div class="dual-track"><div class="dual-fill" data-price-fill></div></div>
+        <input type="range" min="0" max="{{ last_step }}" step="1" value="{{ ns.pmin }}" aria-label="최소 가격" data-price-min>
+        <input type="range" min="0" max="{{ last_step }}" step="1" value="{{ ns.pmax }}" aria-label="최대 가격" data-price-max>
+      </div>
+      <input type="hidden" name="price_min" value="{{ q_min }}" data-price-min-value>
+      <input type="hidden" name="price_max" value="{{ q_max }}" data-price-max-value>
+      <div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="가격 빠른 선택">
+        {% for text, lo, hi in price_quick %}
+          {{ chip(text, pressed=(ns.pmin == lo and ns.pmax == hi), attrs={'data-pmin': lo, 'data-pmax': hi}) }}
+        {% endfor %}
+      </div>
+    </div>
+
+    <noscript><button type="submit" class="btn-primary sm:col-span-2">필터 적용</button></noscript>
+  </form>
+
+  {% if products %}
+    <div class="mt-7 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
+      {% for p in products %}
+        {{ product_card(p, url_for('product_detail', name=p.name), image=p.image) }}
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="panel mt-7 p-8 text-center text-muted">조건에 맞는 상품이 없어요. 검색어나 필터를 바꿔 보세요.</p>
+  {% endif %}
+
+  {{ pagination(page | default(1), total_pages | default(1), 'product_list', **filter_args) }}
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/product.js') }}"></script>{% endblock %}
