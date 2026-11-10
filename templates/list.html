@@ -8,7 +8,7 @@
   {% for name, item in items %}
   <li>
     <a href="{{ url_for('view_item_detail', name=name) }}">
-      <img src="{{ url_for('static', filename='uploads/' ~ item.img_path if item.img_path else 'sample/sample_product.png') }}" alt="{{ name }}">
+      <img src="{{ url_for('static', filename='uploads/' ~ item.img_path if item.img_path else 'sample/sample_product.png') }}" alt="{{ name }}" onerror="this.onerror=null;this.src='{{ url_for('static', filename='sample/sample_product.png') }}'">
     </a>
     <p class="item-name">{{ name }}</p>
     <p>{{ item.price }}원</p>

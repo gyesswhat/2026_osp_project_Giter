@@ -10,7 +10,7 @@
   <tr><th>status</th><td>{{ data.status }}</td></tr>
   <tr><th>Email</th><td>{{ data.email }}</td></tr>
   <tr><th>Picture</th><td>
-    <img src="{{ url_for('static', filename='uploads/' ~ data.img_path if data.img_path else 'sample/sample_product.png') }}" alt="{{ name }}" class="preview">
+    <img src="{{ url_for('static', filename='uploads/' ~ data.img_path if data.img_path else 'sample/sample_product.png') }}" alt="{{ name }}" class="preview" onerror="this.onerror=null;this.src='{{ url_for('static', filename='sample/sample_product.png') }}'">
   </td></tr>
 </table>
 <a href="{{ url_for('item_list') }}">← 목록으로</a>
