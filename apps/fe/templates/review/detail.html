@@ -1,0 +1,79 @@
+
+{% extends "base.html" %}
+{% set active_tab = "review" %}
+
+{% block title %}리뷰 상세 | BoughtIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-12">
+  <article class="mx-auto max-w-2xl">
+
+    <!-- 별점 -->
+    <p class="text-xl tracking-wide text-brandink"
+       aria-label="별점 5점 만점에 5점">
+      ★★★★★
+    </p>
+
+    <!-- 리뷰 제목 -->
+    <h1 class="mt-2 text-3xl font-extrabold text-ink">
+      책 상태가 설명 그대로였어요
+    </h1>
+
+    <!-- 작성자와 날짜 -->
+    <p class="mt-3 flex gap-3 text-sm text-muted">
+      <span class="font-semibold text-ink">ewhain_sw</span>
+      <span class="num font-normal">2026.10.05</span>
+    </p>
+
+    <!-- 거래 상품 정보 -->
+    <a href="#"
+       class="panel mt-6 flex items-center gap-4 p-3">
+
+      <span class="ph relative h-14 w-14 shrink-0 rounded-sm text-2xl"
+            style="--h:150">
+        <span class="center">📗</span>
+      </span>
+
+      <span class="min-w-0 flex-1">
+        <span class="block truncate font-semibold text-ink">
+          컴퓨터구조 및 설계 5판
+        </span>
+        <span class="num block text-sm text-muted">
+          18,000원
+        </span>
+      </span>
+
+      <span class="stamp mr-2">BOUGHT IT</span>
+    </a>
+
+    <!-- 리뷰 사진 -->
+    <div class="ph relative mt-6 aspect-[4/3] max-w-full rounded text-[88px]"
+         style="--h:150">
+      <span class="center">📗</span>
+    </div>
+
+    <!-- 리뷰 본문 -->
+    <div class="mt-6 space-y-4 leading-7 text-ink">
+      <p>
+        필기가 조금 있다고 하셨는데 정말 연필로 몇 군데만 있어서
+        지우고 바로 쓸 수 있었어요. 표지도 사진과 똑같았습니다.
+      </p>
+
+      <p>
+        ECC 앞에서 수업 끝나고 바로 만났는데 약속 시간보다
+        일찍 와 계셨어요. 다음에도 이 판매자분 물건이면
+        믿고 살 것 같아요.
+      </p>
+    </div>
+
+    <!-- 목록으로 돌아가기 -->
+    <div class="mt-10 border-t border-dashed border-line pt-6">
+      <a href="{{ url_for('review_list') }}"
+         class="text-sm font-semibold text-brandink hover:underline">
+        ← 리뷰 목록으로
+      </a>
+    </div>
+
+  </article>
+</div>
+{% endblock %}
