@@ -20,12 +20,12 @@ def index():
 
 @app.route("/list")
 def item_list():
-    page = request.args.get("page", 0, type=int)
+    page = request.args.get("page", 1, type=int)
     per_page = 6
     items = list(DB.get_items().items())
     page_count = max(1, math.ceil(len(items) / per_page))
-    page = min(max(page, 0), page_count - 1)
-    start = page * per_page
+    page = min(max(page, 1), page_count)
+    start = (page - 1) * per_page
     return render_template(
         "list.html",
         items=items[start:start + per_page],
