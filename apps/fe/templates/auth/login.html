@@ -14,7 +14,7 @@
   </div>
 
   <div class="panel p-6 sm:p-8">
-    <form action="" method="post" class="space-y-6">
+    <form action="{{ url_for('product_list') }}" method="get" class="space-y-6">
       {# 아이디 입력 #}
       {{ input(
           name='user_id',

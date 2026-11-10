@@ -14,7 +14,7 @@
   </div>
 
   <div class="panel p-6 sm:p-8">
-    <form action="" method="post" class="space-y-6">
+    <form action="{{ url_for('auth_login') }}" method="get" class="space-y-6">
       {# 아이디 입력 및 중복확인 #}
       <div>
         <label for="user_id" class="label">
@@ -103,7 +103,7 @@
 
       {# 가입하기 버튼 #}
       <div class="pt-2">
-        {{ button('가입하기', variant='primary', type='submit', disabled=true, class='w-full text-base py-3') }}
+        {{ button('가입하기', variant='primary', type='submit', class='w-full text-base py-3') }}
         <p id="submit-help-msg" class="help text-center mt-2" hidden>
           메일 인증을 마치면 가입할 수 있어요.
         </p>
