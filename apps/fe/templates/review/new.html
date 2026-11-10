@@ -17,7 +17,8 @@
     <div class="panel p-8">
 
       <!-- 거래 상품 정보 -->
-      <div class="flex items-center gap-4 rounded bg-[#F8F8F8] p-3">
+      <div class="flex flex-wrap items-center gap-3 rounded bg-[#F8F8F8] p-3 sm:flex-nowrap sm:gap-4">
+
         <span class="ph relative h-14 w-14 shrink-0 rounded-sm text-2xl"
               style="--h:10">
           <span class="center">🫖</span>
@@ -30,14 +31,18 @@
           </p>
         </div>
 
-        <span class="stamp mr-2">BOUGHT IT</span>
+        <span class="stamp ml-auto shrink-0 sm:mr-2">
+          BOUGHT IT
+        </span>
+
       </div>
 
       <!-- 리뷰 작성 폼 -->
       <form method="post" action="" enctype="multipart/form-data" class="mt-7 space-y-7">
+
         <!-- 리뷰 작성자 및 상품 정보 -->
-         <input type="hidden" name="product_name" value="전기 주전자 1L">
-         <input type="hidden" name="reviewer" value="{{ session.get('id', '') }}">
+        <input type="hidden" name="product_name" value="전기 주전자 1L">
+        <input type="hidden" name="reviewer" value="{{ session.get('id', '') }}">
 
         <!-- 별점 -->
         <fieldset>
