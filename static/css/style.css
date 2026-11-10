@@ -13,3 +13,9 @@ table.result th, table.result td { border: 1px solid #ddd; padding: 8px 12px; te
 table.result th { background: #f0f0f0; width: 160px; }
 img.preview { max-width: 300px; border-radius: 4px; }
 .flash { color: #c0392b; font-weight: bold; }
+.navbar .user-id { color: #ffd166; font-weight: bold; }
+.item-grid { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 0; }
+.item-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
+.item-grid p { margin: 4px 0; }
+.item-name { font-weight: bold; }
+.pagination { display: flex; justify-content: center; gap: 12px; margin-top: 16px; }

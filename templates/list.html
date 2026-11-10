@@ -2,5 +2,29 @@
 {% block title %}List - EwhaMarket{% endblock %}
 {% block content %}
 <h1>상품 목록</h1>
-<p>등록된 상품들을 한눈에 볼 수 있는 페이지입니다. (추후 구현 예정)</p>
+<p>전체 {{ total }}개</p>
+{% if items %}
+<ul class="item-grid">
+  {% for name, item in items %}
+  <li>
+    <a href="{{ url_for('view_item_detail', name=name) }}">
+      <img src="{{ url_for('static', filename='uploads/' ~ item.img_path if item.img_path else 'sample/sample_product.png') }}" alt="{{ name }}">
+    </a>
+    <p class="item-name">{{ name }}</p>
+    <p>{{ item.price }}원</p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>등록된 상품이 없습니다.</p>
+{% endif %}
+<nav class="pagination">
+  {% for i in range(page_count) %}
+    {% if i == page %}
+    <strong>{{ i + 1 }}</strong>
+    {% else %}
+    <a href="{{ url_for('item_list', page=i) }}">{{ i + 1 }}</a>
+    {% endif %}
+  {% endfor %}
+</nav>
 {% endblock %}

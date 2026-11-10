@@ -2,7 +2,7 @@
 {% block title %}Login - EwhaMarket{% endblock %}
 {% block content %}
 <h1>로그인</h1>
-<form>
+<form action="{{ url_for('login_user') }}" method="post">
   <label>ID : <input type="text" name="id" required></label>
   <label>Password : <input type="password" name="pw" required></label>
   <p>Input ID and password, and click the login button</p>

@@ -37,3 +37,17 @@ class DBhandler:
             if res.val().get("id") == id_string:
                 return False
         return True
+
+    def find_user(self, id_, pw_hash):
+        users = self.db.child("user").get()
+        for res in users.each() or []:
+            value = res.val()
+            if value.get("id") == id_ and value.get("pw") == pw_hash:
+                return True
+        return False
+
+    def get_items(self):
+        return self.db.child("item").get().val() or {}
+
+    def get_item_byname(self, name):
+        return self.db.child("item").child(name).get().val()

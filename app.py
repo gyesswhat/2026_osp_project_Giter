@@ -1,6 +1,7 @@
 import hashlib
+import math
 import os
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 from database import DBhandler
@@ -19,7 +20,27 @@ def index():
 
 @app.route("/list")
 def item_list():
-    return render_template("list.html")
+    page = request.args.get("page", 0, type=int)
+    per_page = 6
+    items = list(DB.get_items().items())
+    page_count = max(1, math.ceil(len(items) / per_page))
+    page = min(max(page, 0), page_count - 1)
+    start = page * per_page
+    return render_template(
+        "list.html",
+        items=items[start:start + per_page],
+        page=page,
+        page_count=page_count,
+        total=len(items),
+    )
+
+
+@app.route("/view_detail/<name>/")
+def view_item_detail(name):
+    data = DB.get_item_byname(name)
+    if data is None:
+        abort(404)
+    return render_template("detail.html", name=name, data=data)
 
 
 @app.route("/review")
@@ -57,6 +78,23 @@ def submit_item():
 @app.route("/login")
 def login():
     return render_template("login.html")
+
+
+@app.route("/login_confirm", methods=["POST"])
+def login_user():
+    id_ = request.form["id"]
+    pw_hash = hashlib.sha256(request.form["pw"].encode("utf-8")).hexdigest()
+    if DB.find_user(id_, pw_hash):
+        session["id"] = id_
+        return redirect(url_for("item_list"))
+    flash("Wrong ID or PW!")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout_user():
+    session.clear()
+    return redirect(url_for("index"))
 
 
 @app.route("/signup")
