@@ -1,0 +1,39 @@
+/*
+ * 상품 화면 전용 스타일 (product/list.html, detail.html, new.html)
+ * 공통 클래스는 common.css와 base.html의 Tailwind 컴포넌트를 쓴다.
+ */
+
+/* ---------- 가격 슬라이더: 손잡이 두 개 (상품 목록) ---------- */
+/* range input 두 개를 겹쳐 놓고, 트랙은 숨긴 뒤 손잡이만 누를 수 있게 한다 */
+.dual { position: relative; height: 28px; }
+.dual-track {
+  position: absolute; left: 0; right: 0; top: 50%;
+  height: 4px; margin-top: -2px;
+  background: var(--line); border-radius: 2px;
+}
+.dual-fill { position: absolute; top: 0; bottom: 0; background: var(--brand); border-radius: 2px; }
+.dual input[type=range] {
+  position: absolute; left: 0; top: 0;
+  width: 100%; height: 28px; margin: 0; padding: 0;
+  background: none; pointer-events: none;
+  -webkit-appearance: none; appearance: none; outline: none;
+}
+.dual input[type=range]::-webkit-slider-runnable-track { height: 28px; background: none; }
+.dual input[type=range]::-moz-range-track { background: none; }
+.dual input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; pointer-events: auto;
+  width: 20px; height: 20px; margin-top: 4px; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--brand); cursor: pointer;
+}
+.dual input[type=range]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--brand); cursor: pointer;
+}
+.dual input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--tint); }
+.dual input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--tint); }
+
+/* ---------- 상품 등록: 사진 올리기 ---------- */
+/* 숨긴 파일 칸에 키보드 초점이 오면 끌어다 놓는 상자에 테두리를 그린다 */
+[data-photo-input]:focus-visible + .photo-drop { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
+.photo-drop.is-over { border-color: var(--brand); background: var(--tint); }
