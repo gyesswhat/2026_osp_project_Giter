@@ -72,7 +72,9 @@ apps/fe/
 
 ## BE 연동 시 맞출 것
 
+- **라우트 이름·경로·주고받는 값은 [ROUTES.md](ROUTES.md)(라우트 경로표)에 정리했습니다.** 템플릿은 경로를 직접 쓰지 않고 `url_for`로만 링크하므로, 표대로 라우트를 만들면 템플릿을 고치지 않고 연결됩니다.
 - 라우트 함수 이름은 `도메인_동작` (예: `product_list`, `auth_login`). 헤더가 `product_list` `wanted_list` `review_list` `chat_room` `my_index` `product_new` `auth_login` `auth_logout`을 `url_for`로 부릅니다.
+- 상세 화면은 경로 파라미터로 받습니다. 예) `url_for('product_detail', name=p.name)` → `/product/<상품명>`
 - 로그인 여부는 `session['id']`로 판단합니다.
 - 상품 카드의 판매 상태는 `sale_status`(`sale` | `hold` | `done`) 필드를 씁니다. DB의 `status`는 상품 상태(최상/상/중/하)라 따로 둡니다.
 - 상품 이미지는 `img_path`(파일명)를 `static/uploads/`에서 찾습니다.

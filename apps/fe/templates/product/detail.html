@@ -20,9 +20,8 @@
   - image: 이미지 주소를 직접 줄 때 (시안용 더미 등). 주면 img_path보다 우선 (선택)
   - liked: 로그인한 사용자가 찜했는지 (선택)
 
-  약속 신청 폼은 name(상품명), place(장소 칩 값 = places 순번), slot(시간 칩 값 = slots 순번)을 보낸다.
-  처리 라우트가 아직 없어서 action을 비워 두었고, 그동안은 product.js가 제출을 막고 신청 완료 문구만 보여 준다.
-  BE 연동 시 action에 url_for(...)를 채우고 form의 data-demo 속성을 지우면 된다.
+  약속 신청 폼은 POST url_for('product_reserve')로 name(상품명), place(장소 칩 값 = places 순번),
+  slot(시간 칩 값 = slots 순번)을 보낸다. 처리 후에는 이 화면으로 redirect하고 flash로 결과를 알린다. (ROUTES.md)
   장소·시간 칩은 common.js의 칩 그룹 동작(data-chip-group)을 그대로 쓴다. 굵은 건물명을 넣으려고 매크로 대신 직접 그렸다.
 #}
 {% extends "base.html" %}
@@ -100,7 +99,7 @@
 
   {# 약속 잡기: 판매자가 열어 둔 장소·시간 칩에서 하나씩 고른다 #}
   {% if sale != 'done' %}
-    <form id="reserveForm" class="panel mt-10 p-5 sm:p-7" method="post" action="" data-demo>
+    <form id="reserveForm" class="panel mt-10 p-5 sm:p-7" method="post" action="{{ url_for('product_reserve') }}">
       <input type="hidden" name="name" value="{{ p.name }}">
       <h2 class="text-xl font-extrabold tracking-tight">약속 잡기</h2>
       <p class="mt-1 text-sm text-muted">판매자가 열어 둔 장소와 시간 중에서 고르면 채팅 없이도 약속을 신청할 수 있어요.</p>
