@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button, input %}
+{% set active_tab = '' %}
+
+{% block title %}로그인 | BoughtIT{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="auth-wrapper" data-screen="login">
+  <div class="text-center mb-8">
+    <h1 class="page-title text-center mb-8">로그인</h1>
+  </div>
+
+  <div class="panel p-6 sm:p-8">
+    <form action="{{ url_for('product_list') }}" method="get" class="space-y-6">
+      {# 아이디 입력 #}
+      {{ input(
+          name='user_id',
+          label='아이디',
+          type='text',
+          placeholder='아이디를 입력하세요',
+          required=true
+      ) }}
+
+      {# 비밀번호 입력 #}
+      {{ input(
+          name='password',
+          label='비밀번호',
+          type='password',
+          placeholder='비밀번호를 입력하세요',
+          required=true
+      ) }}
+
+      {# 로그인 버튼 #}
+      <div class="pt-2">
+        {{ button('로그인', variant='primary', type='submit', class='w-full text-base py-3') }}
+      </div>
+    </form>
+  </div>
+
+  {# 하단 링크 #}
+  <div class="mt-6 text-center text-sm text-muted">
+    아직 계정이 없나요?
+    <a href="{{ url_for('auth_signup') }}" class="font-semibold text-brand hover:underline ml-1">
+      회원가입
+    </a>
+  </div>
+  
+</section>
+{% endblock %}
