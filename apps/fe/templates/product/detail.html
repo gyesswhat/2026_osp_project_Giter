@@ -94,6 +94,7 @@
           {{- '♥ 찜한 물건' if liked else '♡ 찜하기' -}}
         </button>
         {{ button('판매자 리뷰 보기', variant='quiet', href=url_for('review_list', seller=p.seller)) }}
+        {% if sale == 'done' %}{{ button('리뷰 쓰기', variant='outline', href=url_for('review_new', name=p.name)) }}{% endif %}
       </div>
     </div>
   </div>

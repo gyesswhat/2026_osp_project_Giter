@@ -1,6 +1,27 @@
+{#
+  리뷰 쓰기 (라우트: review_new, GET 화면 + POST 제출)
 
+  사용자가 입력하는 값 (request.form / request.files 키)
+  - reviewer      리뷰 작성자 ID. 로그인 상태면 session['id']로 채우고 읽기 전용
+  - product_name  거래한 상품명. 상품 상세에서 들어오면 ?name= 값으로 채운다
+  - rating        별점 1~5
+  - title         리뷰 제목
+  - photo         리뷰 사진 파일 (선택, 이미지)
+  - content       리뷰 내용
+
+  BE가 넘길 값 (모두 선택)
+  - product: 상품 dict (name, seller). 주면 위에 거래 상품 카드를 보여 준다
+  - form:    서버 검증에 실패해 다시 그릴 때 사용자가 입력했던 값. 예) request.form
+  - errors:  필드별 오류 메시지 dict. 예) {'title': '제목을 입력해 주세요.'}
+  ※ 사진 파일은 브라우저가 다시 채워 주지 않으므로 오류 후에는 다시 골라야 한다.
+#}
 {% extends "base.html" %}
 {% set active_tab = "review" %}
+{% set f = form or {} %}
+{% set err = errors or {} %}
+{% set login_id = session.get('id') %}
+{% set product_name = f.product_name or (product.name if product else request.args.get('name', '')) %}
+{% set rating = (f.rating or 4) | int %}
 
 {% block title %}리뷰 쓰기 | BoughtIT{% endblock %}
 
@@ -16,19 +37,22 @@
     <!-- 리뷰 작성 영역 -->
     <div class="panel p-8">
 
-      <!-- 거래 상품 정보 -->
-      <div class="flex flex-wrap items-center gap-3 rounded bg-[#F8F8F8] p-3 sm:flex-nowrap sm:gap-4">
+      <!-- 거래 상품 정보: 상품 상세에서 들어왔을 때만 -->
+      {% if product %}
+      <div class="mb-7 flex flex-wrap items-center gap-3 rounded bg-[#F8F8F8] p-3 sm:flex-nowrap sm:gap-4">
 
         <span class="ph relative h-14 w-14 shrink-0 rounded-sm text-2xl"
               style="--h:10">
-          <span class="center">🫖</span>
+          <span class="center">📦</span>
         </span>
 
         <div class="min-w-0 flex-1">
-          <p class="font-semibold text-ink">전기 주전자 1L</p>
+          <p class="font-semibold text-ink">{{ product.name }}</p>
+          {% if product.seller %}
           <p class="mt-1 text-sm text-muted">
-            판매자 ehouse_tea
+            판매자 {{ product.seller }}
           </p>
+          {% endif %}
         </div>
 
         <span class="stamp ml-auto shrink-0 sm:mr-2">
@@ -36,13 +60,52 @@
         </span>
 
       </div>
+      {% endif %}
 
       <!-- 리뷰 작성 폼 -->
-      <form method="post" action="" enctype="multipart/form-data" class="mt-7 space-y-7">
+      <form method="post" action="{{ url_for('review_new') }}" enctype="multipart/form-data" class="space-y-7">
 
-        <!-- 리뷰 작성자 및 상품 정보 -->
-        <input type="hidden" name="product_name" value="전기 주전자 1L">
-        <input type="hidden" name="reviewer" value="{{ session.get('id', '') }}">
+        <!-- 작성자 ID · 상품명 -->
+        <div class="grid gap-7 sm:grid-cols-2">
+          <div>
+            <label for="review-reviewer"
+                   class="mb-2 block text-sm font-semibold text-ink">
+              작성자 ID
+            </label>
+            <input
+              id="review-reviewer"
+              name="reviewer"
+              type="text"
+              value="{{ login_id or f.reviewer or '' }}"
+              placeholder="예: ewhain_sw"
+              maxlength="20"
+              autocomplete="username"
+              {% if login_id %}readonly{% endif %}
+              required
+              class="w-full border-0 border-b border-dashed border-muted bg-transparent px-0 py-3 text-sm text-ink outline-none focus:border-brand {{ 'text-muted' if login_id }}"
+            >
+            {% if err.reviewer %}<p class="error" role="alert">{{ err.reviewer }}</p>
+            {% elif login_id %}<p class="help">로그인한 ID로 등록돼요.</p>{% endif %}
+          </div>
+
+          <div>
+            <label for="review-product"
+                   class="mb-2 block text-sm font-semibold text-ink">
+              상품명
+            </label>
+            <input
+              id="review-product"
+              name="product_name"
+              type="text"
+              value="{{ product_name }}"
+              placeholder="거래한 상품 이름을 적어 주세요."
+              maxlength="40"
+              required
+              class="w-full border-0 border-b border-dashed border-muted bg-transparent px-0 py-3 text-sm text-ink outline-none focus:border-brand"
+            >
+            {% if err.product_name %}<p class="error" role="alert">{{ err.product_name }}</p>{% endif %}
+          </div>
+        </div>
 
         <!-- 별점 -->
         <fieldset>
@@ -58,7 +121,7 @@
                 name="rating"
                 value="{{ score }}"
                 class="peer sr-only"
-                {% if score == 4 %}checked{% endif %}
+                {% if score == rating %}checked{% endif %}
                 required
               >
               <span class="rating-star text-3xl text-[#C5CEF9]"
@@ -66,6 +129,7 @@
             </label>
             {% endfor %}
           </div>
+          {% if err.rating %}<p class="error" role="alert">{{ err.rating }}</p>{% endif %}
         </fieldset>
 
         <!-- 제목 -->
@@ -78,20 +142,25 @@
             id="review-title"
             name="title"
             type="text"
+            value="{{ f.title or '' }}"
             placeholder="거래가 어땠는지 한 줄로 적어 주세요."
+            maxlength="50"
+            required
             class="w-full border-0 border-b border-dashed border-muted bg-transparent px-0 py-3 text-sm text-ink outline-none focus:border-brand"
           >
+          {% if err.title %}<p class="error" role="alert">{{ err.title }}</p>{% endif %}
         </div>
 
-        <!-- 사진 -->
-        <div>
+        <!-- 사진: 고르면 미리보기와 파일 이름을 보여 준다 -->
+        <div data-review-photo>
           <label for="review-photo"
                  class="mb-2 block text-sm font-semibold text-ink">
             사진 <span class="font-normal text-muted">(선택)</span>
           </label>
 
           <label for="review-photo"
-                 class="flex h-20 cursor-pointer items-center justify-center rounded-sm border border-dashed border-line bg-[#F8F8F8] font-semibold text-brandink">
+                 class="flex h-20 cursor-pointer items-center justify-center rounded-sm border border-dashed border-line bg-[#F8F8F8] font-semibold text-brandink"
+                 data-photo-drop>
             사진 올리기
           </label>
 
@@ -101,7 +170,22 @@
             type="file"
             accept="image/*"
             class="sr-only"
+            data-photo-input
           >
+
+          <div class="hidden items-center gap-3" data-photo-preview>
+            <span class="ph h-20 w-20 shrink-0 overflow-hidden rounded-sm">
+              <img alt="고른 사진 미리보기" class="h-full w-full object-cover" data-photo-img>
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm text-ink" data-photo-name></p>
+              <div class="mt-1 flex gap-3 text-sm font-semibold">
+                <label for="review-photo" class="cursor-pointer text-brandink">다른 사진</label>
+                <button type="button" class="text-muted" data-photo-clear>지우기</button>
+              </div>
+            </div>
+          </div>
+          {% if err.photo %}<p class="error" role="alert">{{ err.photo }}</p>{% endif %}
         </div>
 
         <!-- 내용 -->
@@ -115,8 +199,10 @@
             name="content"
             rows="5"
             placeholder="상품 상태와 거래 과정을 알려 주세요."
+            required
             class="w-full resize-y border-0 border-b border-dashed border-muted bg-transparent px-0 py-3 text-sm leading-7 text-ink outline-none focus:border-brand"
-          ></textarea>
+          >{{ f.content or '' }}</textarea>
+          {% if err.content %}<p class="error" role="alert">{{ err.content }}</p>{% endif %}
         </div>
 
         <!-- 하단 버튼 -->
@@ -160,6 +246,39 @@
     });
 
     updateStars();
+  });
+</script>
+
+<!-- 사진 미리보기 동작 -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const box = document.querySelector("[data-review-photo]");
+    const input = box.querySelector("[data-photo-input]");
+    const drop = box.querySelector("[data-photo-drop]");
+    const preview = box.querySelector("[data-photo-preview]");
+    const img = box.querySelector("[data-photo-img]");
+    const nameEl = box.querySelector("[data-photo-name]");
+    let url = null;
+
+    function show(file) {
+      if (url) URL.revokeObjectURL(url);
+      url = file ? URL.createObjectURL(file) : null;
+      img.src = url || "";
+      nameEl.textContent = file ? file.name : "";
+      // flex 클래스가 hidden 속성을 이겨서 클래스로 숨긴다
+      preview.classList.toggle("hidden", !file);
+      preview.classList.toggle("flex", !!file);
+      drop.classList.toggle("hidden", !!file);
+      drop.classList.toggle("flex", !file);
+    }
+
+    input.addEventListener("change", function () {
+      show(input.files[0] || null);
+    });
+    box.querySelector("[data-photo-clear]").addEventListener("click", function () {
+      input.value = "";
+      show(null);
+    });
   });
 </script>
 {% endblock %}

@@ -23,6 +23,7 @@ SCREENS = [
     ("/review", "review_list", "review/list.html"),
     ("/review/detail", "review_detail", "review/detail.html"),
     ("/review/new", "review_new", "review/new.html"),
+    ("/review/done", "review_done", "review/done.html"),
     ("/auction/detail", "auction_detail", "auction/detail.html"),
     ("/auction/end", "auction_end", "auction/end.html"),
     ("/chat", "chat_room", "chat/room.html"),
@@ -165,11 +166,58 @@ def product_new():
 product_new.methods = ["GET", "POST"]
 
 
+def review_new():
+    """리뷰 쓰기 미리보기. ?name=상품명 이면 상품 카드와 상품명 칸을 채운다.
+    POST면 서버 쪽 확인을 흉내 내고, 통과하면 완료 화면으로 보낸다 (리뷰·사진은 저장하지 않음)"""
+    name = request.values.get("product_name") or request.args.get("name", "")
+    product = next((p for p in PREVIEW_PRODUCTS if p["name"] == name), None)
+    if request.method == "GET":
+        return render_template("review/new.html", product=product)
+
+    form = request.form
+    errors = {}
+    reviewer = session.get("id") or form.get("reviewer", "").strip()  # 로그인 상태면 세션 값을 믿는다
+    if not reviewer:
+        errors["reviewer"] = "작성자 ID를 입력해 주세요."
+    for field, text in [("product_name", "상품명을 입력해 주세요."), ("title", "제목을 입력해 주세요."),
+                        ("content", "내용을 입력해 주세요.")]:
+        if not form.get(field, "").strip():
+            errors[field] = text
+    rating = _int(form.get("rating"))
+    if rating not in range(1, 6):
+        errors["rating"] = "별점을 1~5점 중에서 골라 주세요."
+    photo = request.files.get("photo")
+    if photo and photo.filename and not (photo.mimetype or "").startswith("image/"):
+        errors["photo"] = "사진 파일만 올릴 수 있어요."
+    if errors:
+        return render_template("review/new.html", product=product, form=form, errors=errors), 400
+
+    session["last_review"] = {
+        "reviewer": reviewer,
+        "product_name": form["product_name"].strip(),
+        "rating": rating,
+        "title": form["title"].strip(),
+        "content": form["content"].strip(),
+        "photo": photo.filename if photo and photo.filename else "",
+    }
+    return redirect(url_for("review_done"))
+
+
+review_new.methods = ["GET", "POST"]
+
+
+def review_done():
+    """리뷰 등록 완료 미리보기. 방금 제출한 값을 세션에서 꺼내 보여 준다"""
+    return render_template("review/done.html", review=session.get("last_review"))
+
+
 # 더미 데이터가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
     "product_list": product_list,
     "product_detail": product_detail,
     "product_new": product_new,
+    "review_new": review_new,
+    "review_done": review_done,
 }
 
 
