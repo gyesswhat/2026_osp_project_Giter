@@ -5,6 +5,9 @@
   - 로그인 여부: session['id'] 가 있으면 로그인 상태로 본다. (BE와 키 이름 맞출 것)
   - 채팅·마이 탭은 로그인 후에만 보인다. (시안 기준)
   - 링크 엔드포인트 이름은 라우트 함수 규칙(도메인_동작)을 따른다.
+  - 반응형: md(768px) 이상은 한 줄 [로고 | 탭 | 버튼].
+    그보다 좁으면 두 줄로 나눈다. 1줄 [로고 | 버튼], 2줄 [탭을 같은 폭으로]. (order로 순서만 바꾼다)
+    로그인 상태는 탭 5개 + 버튼 2개라 한 줄이면 640px 이하에서 넘쳐서 가로 스크롤이 생겼다. (#18)
 #}
 {% set tab = active_tab | default('') %}
 {% set logged_in = session.get('id') %}
@@ -17,25 +20,25 @@
 ] %}
 
 <header class="head-slip sticky top-0 z-20">
-  <div class="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-6">
-    <a href="{{ url_for('product_list') }}" class="shrink-0 font-stamp text-[25px] leading-none text-onbrand" aria-label="BoughtIT 홈">BoughtIT</a>
+  <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:flex-nowrap md:gap-6">
+    <a href="{{ url_for('product_list') }}" class="order-1 shrink-0 font-stamp text-[23px] leading-none text-onbrand md:text-[25px]" aria-label="BoughtIT 홈">BoughtIT</a>
 
-    <nav class="flex min-w-0 gap-1 overflow-x-auto text-[15px] font-semibold" aria-label="주 메뉴">
+    <nav class="order-3 flex w-full gap-1 text-[15px] font-semibold md:order-2 md:w-auto md:min-w-0" aria-label="주 메뉴">
       {% for key, text, endpoint, need_login in tabs %}
         {% if not need_login or logged_in %}
           <a href="{{ url_for(endpoint) }}"
-             class="shrink-0 rounded px-3 py-1.5 {{ 'bg-bg text-brandink' if tab == key else 'hover:bg-white/10' }}"
+             class="flex-1 whitespace-nowrap rounded px-1 py-1.5 text-center md:flex-none md:px-3 {{ 'bg-bg text-brandink' if tab == key else 'hover:bg-white/10' }}"
              {% if tab == key %}aria-current="page"{% endif %}>{{ text }}</a>
         {% endif %}
       {% endfor %}
     </nav>
 
-    <div class="ml-auto flex shrink-0 items-center gap-1">
+    <div class="order-2 ml-auto flex shrink-0 items-center gap-1 md:order-3">
       {% if logged_in %}
-        <a href="{{ url_for('product_new') }}" class="btn-head">상품 등록</a>
-        <a href="{{ url_for('auth_logout') }}" class="btn px-3 text-onbrand hover:bg-white/10">로그아웃</a>
+        <a href="{{ url_for('product_new') }}" class="btn-head px-3 md:px-4">상품 등록</a>
+        <a href="{{ url_for('auth_logout') }}" class="btn px-2 text-onbrand hover:bg-white/10 md:px-3">로그아웃</a>
       {% else %}
-        <a href="{{ url_for('auth_login') }}" class="btn-head">로그인</a>
+        <a href="{{ url_for('auth_login') }}" class="btn-head px-3 md:px-4">로그인</a>
       {% endif %}
     </div>
   </div>
