@@ -9,19 +9,20 @@ BE 연동 전에 base.html과 공통 컴포넌트, 각자 만든 화면을 확�
 
 import math
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from jinja2 import TemplateNotFound
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "fe-preview"
 
 # (경로, 라우트 함수 이름, 템플릿) — 템플릿이 아직 없으면 준비 중 안내를 띄운다
+# 경로를 바꾸면 ROUTES.md(라우트 경로표)도 같이 고친다
 SCREENS = [
     ("/", "product_list", "product/list.html"),
-    ("/product/detail", "product_detail", "product/detail.html"),
+    ("/product/<path:name>", "product_detail", "product/detail.html"),
     ("/product/new", "product_new", "product/new.html"),
     ("/review", "review_list", "review/list.html"),
-    ("/review/detail", "review_detail", "review/detail.html"),
+    ("/review/<path:name>", "review_detail", "review/detail.html"),
     ("/review/new", "review_new", "review/new.html"),
     ("/auction/detail", "auction_detail", "auction/detail.html"),
     ("/auction/end", "auction_end", "auction/end.html"),
@@ -126,11 +127,32 @@ def product_list():
     )
 
 
-def product_detail():
-    """상품 상세 미리보기. ?name=상품명 으로 찾고, 없으면 첫 상품을 보여 준다"""
-    name = request.args.get("name", "")
-    product = next((p for p in PREVIEW_PRODUCTS if p["name"] == name), PREVIEW_PRODUCTS[0])
+def _find_product(name):
+    return next((p for p in PREVIEW_PRODUCTS if p["name"] == name), None)
+
+
+def product_detail(name):
+    """상품 상세 미리보기. /product/<상품명> 으로 찾고, 없으면 404"""
+    product = _find_product(name)
+    if product is None:
+        abort(404)
     return render_template("product/detail.html", product=product, liked=False)
+
+
+def product_reserve():
+    """약속 신청 미리보기. 폼 값(name, place, slot)을 확인하고 상세로 돌아간다 (저장하지 않음)"""
+    product = _find_product(request.form.get("name", ""))
+    if product is None:
+        abort(404)
+    places = product.get("places") or [{"building": product.get("address", ""), "detail": ""}]
+    slots = product.get("slots") or []
+    place, slot = _int(request.form.get("place")), _int(request.form.get("slot"))
+    if place is None or slot is None or not (0 <= place < len(places)) or not (0 <= slot < len(slots)):
+        flash("장소와 시간을 하나씩 골라 주세요.", "error")
+    else:
+        where = " ".join(v for v in (places[place]["building"], places[place].get("detail")) if v)
+        flash(f"{where}, {slots[slot]}에 약속을 신청했어요. 판매자가 수락하면 마이에 표시돼요.")
+    return redirect(url_for("product_detail", name=product["name"]))
 
 
 def product_new():
@@ -150,7 +172,9 @@ def product_new():
         errors["price"] = "가격을 숫자로 입력해 주세요."
     if form.get("status") not in ("최상", "상", "중", "하"):
         errors["status"] = "상품 상태를 골라 주세요."
-    if any(p["name"] == form.get("name", "").strip() for p in PREVIEW_PRODUCTS):
+    if form.get("name", "").strip().lower() in RESERVED_NAMES:
+        errors["name"] = "이 이름으로는 등록할 수 없어요. 이름을 조금 바꿔 주세요."  # /product/new 같은 고정 경로와 겹친다
+    elif _find_product(form.get("name", "").strip()):
         errors["name"] = "같은 이름의 상품이 이미 있어요. 이름을 조금 바꿔 주세요."  # Firebase에서 상품명이 키라서
     if errors:
         return render_template("product/new.html", form=form, errors=errors), 400
@@ -164,12 +188,40 @@ def product_new():
 
 product_new.methods = ["GET", "POST"]
 
+# /product/<path:name> 보다 먼저 잡히는 고정 경로. 이 이름의 상품은 상세로 갈 수 없어서 등록을 막는다
+RESERVED_NAMES = {"new", "reserve"}
 
-# 더미 데이터가 필요한 화면은 make_view 대신 이 뷰를 쓴다
+
+def auth_login():
+    """로그인 미리보기. 비밀번호는 확인하지 않고, ID만 있으면 로그인 처리 후 상품 목록으로 간다"""
+    if request.method == "POST":
+        user_id = request.form.get("user_id", "").strip()
+        if user_id and request.form.get("password"):
+            session["id"] = user_id
+            return redirect(url_for("product_list"))
+        flash("아이디와 비밀번호를 입력해 주세요.", "error")
+    return render_template("auth/login.html")
+
+
+def auth_signup():
+    """회원가입 미리보기. 저장하지 않고 로그인 화면으로 보낸다"""
+    if request.method == "POST":
+        flash("가입했어요. 로그인해 주세요.")
+        return redirect(url_for("auth_login"))
+    return render_template("auth/signup.html")
+
+
+auth_login.methods = ["GET", "POST"]
+auth_signup.methods = ["GET", "POST"]
+
+
+# 더미 데이터나 POST 처리가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
     "product_list": product_list,
     "product_detail": product_detail,
     "product_new": product_new,
+    "auth_login": auth_login,
+    "auth_signup": auth_signup,
 }
 
 
@@ -188,6 +240,9 @@ def make_view(template):
 
 for path, endpoint, template in SCREENS:
     app.add_url_rule(path, endpoint, CUSTOM_VIEWS.get(endpoint) or make_view(template))
+
+
+app.add_url_rule("/product/reserve", "product_reserve", product_reserve, methods=["POST"])
 
 
 @app.route("/logout")
