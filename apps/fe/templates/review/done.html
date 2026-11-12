@@ -1,0 +1,45 @@
+{#
+  리뷰 등록 완료 (라우트: review_done)
+  리뷰 쓰기(review_new) POST가 통과하면 여기로 보낸다. 새로고침해도 다시 제출되지 않게 redirect 후 보여 준다.
+
+  BE가 넘길 값
+  - review (dict, 없으면 안내만): reviewer, product_name, rating, title, content, photo(파일명, 선택)
+  BE 연동 후 리뷰 상세 화면이 실제 데이터를 받게 되면 이 화면 대신 review_detail로 보내도 된다.
+#}
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button %}
+{% set active_tab = "review" %}
+{% set r = review %}
+
+{% block title %}리뷰 등록 완료 | BoughtIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl px-4 py-10">
+  <div class="panel p-8">
+    <span class="stamp blue">등록 완료</span>
+    <h1 class="mt-4 text-2xl font-extrabold text-ink">리뷰를 등록했어요</h1>
+
+    {% if r %}
+      <dl class="mt-6 space-y-2 border-y border-dashed border-line py-4 text-[15px]">
+        <div class="row"><dt class="text-muted">작성자</dt><span class="leader"></span>
+          <dd class="font-semibold">{{ r.reviewer }}</dd></div>
+        <div class="row"><dt class="text-muted">상품</dt><span class="leader"></span>
+          <dd class="min-w-0 truncate">{{ r.product_name }}</dd></div>
+        <div class="row"><dt class="text-muted">별점</dt><span class="leader"></span>
+          <dd class="text-brandink" aria-label="별점 {{ r.rating }}점">{{ '★' * r.rating }}<span class="text-[#C5CEF9]">{{ '★' * (5 - r.rating) }}</span></dd></div>
+        <div class="row"><dt class="text-muted">사진</dt><span class="leader"></span>
+          <dd class="min-w-0 truncate">{{ r.photo or '없음' }}</dd></div>
+      </dl>
+      <p class="mt-5 font-bold text-ink">{{ r.title }}</p>
+      <p class="mt-2 whitespace-pre-line break-keep text-sm leading-7 text-ink">{{ r.content }}</p>
+    {% else %}
+      <p class="mt-3 text-muted">방금 등록한 리뷰 정보가 없어요.</p>
+    {% endif %}
+
+    <div class="tear mt-6 flex flex-wrap justify-end gap-2 pt-5">
+      {{ button('상품 둘러보기', variant='quiet', href=url_for('product_list')) }}
+      {{ button('리뷰 목록으로', href=url_for('review_list')) }}
+    </div>
+  </div>
+</div>
+{% endblock %}
