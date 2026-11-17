@@ -19,3 +19,28 @@ img.preview { max-width: 300px; border-radius: 4px; }
 .item-grid p { margin: 4px 0; }
 .item-name { font-weight: bold; }
 .pagination { display: flex; justify-content: center; gap: 12px; margin-top: 16px; }
+
+/* ---------- 리뷰 ---------- */
+.btn { display: inline-block; padding: 8px 20px; background: #1f2a44; color: #fff; border: 0; border-radius: 4px; text-decoration: none; cursor: pointer; font-size: 1rem; }
+.btn:hover { background: #33416a; }
+.detail-actions { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+form textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 6px; font: inherit; }
+.rating-field { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.rating-input { display: inline-flex; flex-direction: row-reverse; gap: 4px; position: relative; }
+.rating-input input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.rating-input label { display: inline; margin: 0; font-size: 1.8rem; color: #ccc; cursor: pointer; }
+.rating-input input:checked ~ label,
+.rating-input label:hover,
+.rating-input label:hover ~ label { color: #f5a623; }
+.rating-input input:focus-visible + label { outline: 2px solid #1f2a44; }
+.review-grid { list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 0; }
+.review-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }
+.review-grid p { margin: 4px 0; }
+.review-content { white-space: pre-wrap; }
+.stars { color: #f5a623; letter-spacing: 2px; }
+
+/* ---------- 좋아요 ---------- */
+.like-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #fff; color: #c0392b; border: 1px solid #c0392b; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+.like-btn .heart { font-size: 1.2rem; line-height: 1; }
+.like-btn.liked { background: #c0392b; color: #fff; }
+.like-btn:disabled { opacity: .6; cursor: wait; }

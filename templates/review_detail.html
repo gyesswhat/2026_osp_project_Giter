@@ -1,0 +1,17 @@
+{% extends "index.html" %}
+{% block title %}{{ data.title }} - EwhaMarket{% endblock %}
+{% block content %}
+<h1>리뷰 상세</h1>
+{% set rating = (data.rating or 0) | int %}
+<table class="result">
+  <tr><th>Title</th><td>{{ data.title }}</td></tr>
+  <tr><th>Product name</th><td><a href="{{ url_for('view_item_detail', name=data.item_name) }}">{{ data.item_name }}</a></td></tr>
+  <tr><th>Photo</th><td>
+    <img src="{{ url_for('static', filename='uploads/' ~ data.img_path if data.img_path else 'sample/sample_product.png') }}" alt="{{ data.title }}" class="preview" onerror="this.onerror=null;this.src='{{ url_for('static', filename='sample/sample_product.png') }}'">
+  </td></tr>
+  <tr><th>Review</th><td class="review-content">{{ data.content }}</td></tr>
+  <tr><th>Rating</th><td><span class="stars" aria-label="{{ rating }}점">{{ '★' * rating }}{{ '☆' * (5 - rating) }}</span> ({{ rating }}/5)</td></tr>
+  {% if data.reviewer %}<tr><th>Reviewer</th><td>{{ data.reviewer }}</td></tr>{% endif %}
+</table>
+<a href="{{ url_for('review_list') }}">← 리뷰 목록으로</a>
+{% endblock %}

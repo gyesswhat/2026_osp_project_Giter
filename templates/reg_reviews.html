@@ -1,6 +1,33 @@
 {% extends "index.html" %}
-{% block title %}Register Reviews - EwhaMarket{% endblock %}
+{% block title %}Write a Review - EwhaMarket{% endblock %}
 {% block content %}
-<h1>리뷰 등록</h1>
-<p>거래한 상품에 대한 리뷰를 작성하는 페이지입니다. (추후 구현 예정)</p>
+<h1>리뷰 작성</h1>
+<form id="review-form" action="{{ url_for('reg_review') }}" method="post" enctype="multipart/form-data">
+  {% if name %}
+  <label>Product name: <input type="text" name="item_name" value="{{ name }}" readonly required></label>
+  {% else %}
+  <label>Product name:
+    <select name="item_name" required>
+      <option value="" selected disabled>상품을 선택하세요</option>
+      {% for item_name in item_names %}
+      <option value="{{ item_name }}">{{ item_name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+  <label>Review title: <input type="text" name="title" maxlength="50" required></label>
+  <label>Photo: <input type="file" name="photo" accept="image/*" required></label>
+  <label class="block-label">Review:
+    <textarea name="content" rows="6" required></textarea>
+  </label>
+  <div class="rating-field">Rating:
+  <div class="rating-input" role="radiogroup" aria-label="Rating">
+    {% for i in range(5, 0, -1) %}
+    <input type="radio" id="star{{ i }}" name="rating" value="{{ i }}" required>
+    <label for="star{{ i }}" title="{{ i }}점">★</label>
+    {% endfor %}
+  </div>
+  </div>
+  <input type="submit" value="Submit review">
+</form>
 {% endblock %}
