@@ -13,5 +13,18 @@
     <img src="{{ url_for('static', filename='uploads/' ~ data.img_path if data.img_path else 'sample/sample_product.png') }}" alt="{{ name }}" class="preview" onerror="this.onerror=null;this.src='{{ url_for('static', filename='sample/sample_product.png') }}'">
   </td></tr>
 </table>
+<div class="detail-actions">
+  <button type="button" id="like-btn" class="like-btn{% if liked %} liked{% endif %}"
+          data-like-url="{{ url_for('like', name=name) }}"
+          data-unlike-url="{{ url_for('unlike', name=name) }}"
+          data-logged-in="{{ 'true' if session.id else 'false' }}"
+          data-login-url="{{ url_for('login') }}"
+          aria-pressed="{{ 'true' if liked else 'false' }}">
+    <span class="heart">{{ '♥' if liked else '♡' }}</span>
+    <span class="like-label">{{ 'Liked' if liked else 'Like' }}</span>
+    <span class="like-count">{{ like_count }}</span>
+  </button>
+  <a class="btn" href="{{ url_for('reg_review_init', name=name) }}">Write a review</a>
+</div>
 <a href="{{ url_for('item_list') }}">← 목록으로</a>
 {% endblock %}
