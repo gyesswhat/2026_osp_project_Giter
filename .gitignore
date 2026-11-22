@@ -7,5 +7,5 @@ static/uploads/*
 *.pdf
 authentication/
 /docs/
+# macOS 폴더 설정 파일 (모든 폴더)
 .DS_Store
-static/.DS_Store
