@@ -41,3 +41,27 @@ function syncChipInputs(group) {
     group.appendChild(input);
   });
 }
+
+// 경매 카드 남은 시간: components/_product_card.html 의 data-end-at(마감 시각 ISO 문자열)을 읽어
+// "2일 13시간 남음" / "3시간 20분 남음" / "15분 남음" / "제안 마감"으로 바꾸고 1분마다 갱신한다.
+function auctionLeftText(ms) {
+  if (ms <= 0) return '제안 마감';
+  const m = Math.floor(ms / 60000);
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  if (d) return `${d}일 ${h}시간 남음`;
+  if (h) return `${h}시간 ${m % 60}분 남음`;
+  return `${Math.max(1, m % 60)}분 남음`;
+}
+
+function renderAuctionLeft() {
+  document.querySelectorAll('[data-end-at]').forEach((el) => {
+    const end = Date.parse(el.dataset.endAt);
+    if (!Number.isNaN(end)) el.textContent = auctionLeftText(end - Date.now());
+  });
+}
+
+if (document.querySelector('[data-end-at]')) {
+  renderAuctionLeft();
+  setInterval(renderAuctionLeft, 60000);
+}
