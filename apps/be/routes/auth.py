@@ -86,15 +86,16 @@ def auth_login():
     if request.method == "POST":
         user_id = request.form.get("user_id", "").strip()
         password = request.form.get("password", "")
+
         if not user_id or not password:
             flash("아이디 또는 비밀번호를 입력해 주세요.", "error")
-            return render_template("auth/login.html")
+            return render_template("auth/login.html"), 400
         
         user = get_user(user_id)
 
         if user is None:
             flash("아이디 또는 비밀번호가 맞지 않아요.", "error")
-            return render_template("auth/login.html")
+            return render_template("auth/login.html"), 401
 
         pw_hash = hashlib.sha256(
             password.encode("utf-8")
@@ -105,7 +106,7 @@ def auth_login():
             return redirect(url_for("product_list"))
 
         flash("아이디 또는 비밀번호가 맞지 않아요.", "error")
-        return render_template("auth/login.html")
+        return render_template("auth/login.html"), 401
 
     return render_template("auth/login.html")
 
@@ -117,9 +118,8 @@ def auth_signup():
         user_id = request.form.get("user_id", "").strip()
         password = request.form.get("password", "")
         password_confirm = request.form.get("password_confirm", "")
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()
         #TODO : auth_code 코드 작성
-        # auth_code = request.form.get("auth_code", "").strip()
         phone = request.form.get("phone", "").strip() or None
 
         form = {
@@ -136,7 +136,7 @@ def auth_signup():
         )
 
         if errors:
-            print("회원가입 오류:", errors) # 오류 확인용
+
             return render_template(
                 "auth/signup.html",
                 form=form,
