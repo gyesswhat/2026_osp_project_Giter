@@ -1,11 +1,14 @@
 """리뷰 라우트: review_list, review_new, review_done, review_detail, 찜(product_like)"""
 
+import math
 from datetime import datetime
 
 from flask import abort, flash, redirect, render_template, request, session, url_for
 
 from core import app, db, to_int
 from routes.product import get_product, product_key, save_picture, validate_picture
+
+REVIEW_PAGE_SIZE = 10
 
 
 @app.route("/product/like", methods=["POST"])
@@ -56,9 +59,53 @@ def toggle_like(user_id, name, product):
 
 @app.route("/review")
 def review_list():
-    """리뷰 목록. 쿼리: seller, page"""
+    """리뷰 목록. 쿼리: seller(선택), page(기본 1)"""
     seller = request.args.get("seller", "")
-    return render_template("review/list.html", seller=seller, reviews=[], total=0, page=1, total_pages=1)
+    reviews = load_reviews()
+    if seller:
+        reviews = [r for r in reviews if r.get("seller") == seller]
+    reviews.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+
+    total = len(reviews)
+    total_pages = max(1, math.ceil(total / REVIEW_PAGE_SIZE))
+    page = min(max(1, to_int(request.args.get("page"), 1)), total_pages)
+
+    seller_info = None
+    if seller:
+        avg_rating, count = seller_rating(seller, reviews=reviews)
+        seller_info = {"id": seller, "avg_rating": avg_rating, "count": count}
+
+    return render_template(
+        "review/list.html",
+        reviews=reviews[(page - 1) * REVIEW_PAGE_SIZE : page * REVIEW_PAGE_SIZE],
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        seller=seller,
+        seller_info=seller_info,
+    )
+
+
+def load_reviews():
+    """/reviews 전체를 읽어 date를 추가한다. db가 없으면 빈 목록이다."""
+    if db is None:
+        return []
+    stored = db.child("reviews").get().val() or {}
+    return [with_review_date(r) for r in stored.values()]
+
+
+def seller_rating(seller_id, reviews=None):
+    """seller_id가 받은 리뷰의 (평균 별점, 개수)를 반환한다.
+
+    reviews를 넘기면 그 목록으로 계산하고(이미 읽은 목록을 재사용해 /reviews를 다시 읽지 않는다),
+    넘기지 않으면 load_reviews()로 새로 읽는다. 평균은 소수 첫째 자리로 반올림하고, 리뷰가 없으면 (0, 0)이다.
+    """
+    if reviews is None:
+        reviews = load_reviews()
+    ratings = [r["rating"] for r in reviews if r.get("seller") == seller_id]
+    if not ratings:
+        return 0, 0
+    return round(sum(ratings) / len(ratings), 1), len(ratings)
 
 
 @app.route("/review/new", methods=["GET", "POST"])

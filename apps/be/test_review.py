@@ -64,12 +64,14 @@ class FakeDb:
     def __init__(self):
         self.store = {}
         self.path = []
+        self.get_log = []  # get()이 실행될 때마다의 경로(tuple). 중복 읽기 확인용
 
     def child(self, key):
         self.path.append(str(key))
         return self
 
     def get(self):
+        self.get_log.append(tuple(self.path))
         node = self.store
         for key in self.path:
             if not isinstance(node, dict) or key not in node:
@@ -515,3 +517,161 @@ def test_review_detail():
     check_review_detail_product_deleted()
     check_review_detail_name_with_slash()
     check_review_detail_date_handles_missing_created_at()
+
+
+def seed_review(fake_db, **fields):
+    review_data = make_review(**fields)
+    key = product.product_key(review_data["product_name"])
+    fake_db.child("reviews").child(key).set(review_data)
+    return review_data
+
+
+def check_review_list_empty():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+
+    with captured_templates() as templates:
+        response = client.get("/review")
+        assert response.status_code == 200
+        _, context = templates[0]
+        assert context["reviews"] == []
+        assert context["total"] == 0
+        assert context["total_pages"] == 1
+        assert context["page"] == 1
+        assert context["seller"] == ""
+        assert context["seller_info"] is None
+
+
+def check_review_list_sorted_newest_first():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_review(fake_db, product_name="오래된 리뷰", created_at="2026-01-01T00:00:00+09:00")
+    seed_review(fake_db, product_name="최신 리뷰", created_at="2026-06-01T00:00:00+09:00")
+    seed_review(fake_db, product_name="중간 리뷰", created_at="2026-03-01T00:00:00+09:00")
+
+    with captured_templates() as templates:
+        response = client.get("/review")
+        assert response.status_code == 200
+        reviews = templates[0][1]["reviews"]
+        assert [r["product_name"] for r in reviews] == ["최신 리뷰", "중간 리뷰", "오래된 리뷰"]
+
+
+def check_review_list_seller_filter():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_review(fake_db, product_name="상품1", seller="owner", rating=5)
+    seed_review(fake_db, product_name="상품2", seller="owner", rating=4)
+    seed_review(fake_db, product_name="상품3", seller="other", rating=3)
+
+    with captured_templates() as templates:
+        response = client.get("/review?seller=owner")
+        assert response.status_code == 200
+        _, context = templates[0]
+        assert {r["product_name"] for r in context["reviews"]} == {"상품1", "상품2"}
+        assert context["total"] == 2
+        assert context["seller"] == "owner"
+        assert context["seller_info"] == {"id": "owner", "avg_rating": 4.5, "count": 2}
+
+
+def check_review_list_unknown_seller():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_review(fake_db, seller="owner")
+
+    with captured_templates() as templates:
+        response = client.get("/review?seller=nobody")
+        assert response.status_code == 200
+        _, context = templates[0]
+        assert context["reviews"] == []
+        assert context["total"] == 0
+        assert context["seller_info"] == {"id": "nobody", "avg_rating": 0, "count": 0}
+
+
+def check_review_list_pagination():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    total_reviews = review.REVIEW_PAGE_SIZE + 3
+    for i in range(total_reviews):
+        seed_review(fake_db, product_name=f"상품{i}", created_at=f"2026-01-{i + 1:02d}T00:00:00+09:00")
+
+    with captured_templates() as templates:
+        response = client.get("/review")
+        assert response.status_code == 200
+        _, context = templates[0]
+        assert context["total"] == total_reviews
+        assert context["total_pages"] == 2
+        assert context["page"] == 1
+        assert len(context["reviews"]) == review.REVIEW_PAGE_SIZE
+
+    with captured_templates() as templates:
+        response = client.get("/review?page=2")
+        assert response.status_code == 200
+        _, context = templates[0]
+        assert context["page"] == 2
+        assert len(context["reviews"]) == 3
+
+
+def check_review_list_page_clamped():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_review(fake_db, product_name="상품")  # 리뷰 1개뿐이라 total_pages는 1이다
+
+    for page_value in ("abc", "0", "-5", "999"):
+        with captured_templates() as templates:
+            response = client.get("/review?page=" + page_value)
+            assert response.status_code == 200
+            assert templates[0][1]["page"] == 1
+
+
+def check_seller_rating_standalone():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_review(fake_db, product_name="상품1", seller="owner", rating=5)
+    seed_review(fake_db, product_name="상품2", seller="owner", rating=4)
+    seed_review(fake_db, product_name="상품3", seller="owner", rating=4)
+
+    assert review.seller_rating("owner") == (4.3, 3)
+    assert review.seller_rating("nobody") == (0, 0)
+
+
+def check_review_list_reads_reviews_once():
+    """review_list가 이미 읽은 reviews 목록을 seller_rating에 넘겨서 /reviews를 한 번만 읽어야 한다."""
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_review(fake_db, product_name="상품1", seller="owner", rating=5)
+    seed_review(fake_db, product_name="상품2", seller="owner", rating=3)
+
+    response = client.get("/review?seller=owner")
+    assert response.status_code == 200
+    reads = [p for p in fake_db.get_log if p == ("reviews",)]
+    assert len(reads) == 1, f"/reviews를 {len(reads)}번 읽었다"
+
+
+def check_review_list_db_none():
+    review.db = None
+    product.db = None
+
+    with captured_templates() as templates:
+        response = client.get("/review")
+        assert response.status_code == 200
+        assert templates[0][1]["reviews"] == []
+
+
+def test_review_list():
+    check_review_list_empty()
+    check_review_list_sorted_newest_first()
+    check_review_list_seller_filter()
+    check_review_list_unknown_seller()
+    check_review_list_pagination()
+    check_review_list_page_clamped()
+    check_seller_rating_standalone()
+    check_review_list_reads_reviews_once()
+    check_review_list_db_none()
