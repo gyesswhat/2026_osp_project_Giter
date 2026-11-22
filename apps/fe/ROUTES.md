@@ -90,6 +90,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `auth_signup` `/signup`
 - POST: `user_id, password, password_confirm, email, auth_code, phone`(선택)
 - 성공하면 `auth_login`으로 redirect
+- 실패: 같은 템플릿에 `form`(`user_id, email, phone`), `errors`(`user_id, password, password_confirm, email, general`)를 넘겨 400으로 다시 표시
 
 ### `auth_logout` `/logout`
 - `session`에서 `id`를 지우고 `product_list`로 redirect
