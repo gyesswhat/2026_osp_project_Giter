@@ -147,7 +147,17 @@ def save_review(review):
     db.child("reviews").child(product_key(review["product_name"])).set(review)
 
 
+def with_review_date(review):
+    """FE가 쓰는 date(예: 2026.10.06)를 created_at에서 만들어 추가한다. created_at이 없거나 비어 있으면 date는 ''이다."""
+    created_at = review.get("created_at") or ""
+    date = created_at[:10].replace("-", ".") if created_at else ""
+    return {**review, "date": date}
+
+
 @app.route("/review/<path:name>")
 def review_detail(name):
-    """리뷰 상세. name은 리뷰를 쓴 상품명이다."""
-    return render_template("review/detail.html", review=None, name=name)
+    """리뷰 상세. name은 리뷰를 쓴 상품의 상품명이다. 리뷰가 없으면 404."""
+    review = get_review(name)
+    if review is None:
+        abort(404)
+    return render_template("review/detail.html", review=with_review_date(review), product=get_product(name))

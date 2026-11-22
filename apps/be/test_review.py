@@ -7,7 +7,10 @@ pyrebase db를 흉내 내는 FakeDb를 review.db, product.db에 주입해서 찜
 import io
 import os
 import tempfile
+from contextlib import contextmanager
 from urllib.parse import quote
+
+from flask import template_rendered
 
 from core import app
 # 헤더의 url_for가 찾는 라우트를 모두 등록한다 (app.py와 같은 import)
@@ -19,6 +22,21 @@ client = app.test_client()
 
 def uploaded_files():
     return set(os.listdir(product.UPLOAD_DIR))
+
+
+@contextmanager
+def captured_templates():
+    """render_template에 넘긴 템플릿 이름과 context를 잡는다 (Flask 표준 테스트 패턴)."""
+    recorded = []
+
+    def record(sender, template, context, **extra):
+        recorded.append((template, context))
+
+    template_rendered.connect(record, app)
+    try:
+        yield recorded
+    finally:
+        template_rendered.disconnect(record, app)
 
 
 def detail_path(name):
@@ -392,3 +410,108 @@ def test_review_new():
     check_review_done_without_last_review()
     # 검증 실패·저장 불가 케이스 전체에서 static/uploads에 파일이 남지 않았는지 최종 확인한다
     assert uploaded_files() == set()
+
+
+def make_review(**fields):
+    review_data = {
+        "product_name": "로지텍 키보드",
+        "reviewer": "tester",
+        "seller": "owner",
+        "rating": 5,
+        "title": "제목",
+        "content": "내용",
+        "photo": "",
+        "created_at": "2026-10-06T10:00:00+09:00",
+    }
+    review_data.update(fields)
+    return review_data
+
+
+def check_review_detail_missing():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    assert client.get("/review/" + "없는 상품").status_code == 404
+
+
+def check_review_detail_found():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, name="로지텍 키보드", seller="owner")
+    key = product.product_key("로지텍 키보드")
+    review_data = make_review()
+    fake_db.child("reviews").child(key).set(review_data)
+
+    with captured_templates() as templates:
+        response = client.get("/review/" + "로지텍 키보드")
+        assert response.status_code == 200
+        assert len(templates) == 1
+        template, context = templates[0]
+        assert template.name == "review/detail.html"
+        review_ctx = context["review"]
+        for field in ("product_name", "reviewer", "seller", "rating", "title", "content", "photo"):
+            assert review_ctx[field] == review_data[field]
+        assert review_ctx["date"] == "2026.10.06"
+        assert context["product"]["name"] == "로지텍 키보드"
+
+
+def check_review_detail_product_deleted():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    key = product.product_key("지워진 상품")
+    fake_db.child("reviews").child(key).set(make_review(product_name="지워진 상품"))
+    # 상품은 저장하지 않는다 (지워진 상태를 흉내 낸다)
+
+    with captured_templates() as templates:
+        response = client.get("/review/" + "지워진 상품")
+        assert response.status_code == 200
+        _, context = templates[0]
+        assert context["product"] is None
+
+
+def check_review_detail_name_with_slash():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, seller="owner")  # 기본 상품명 "아이패드 1/2"
+    key = product.product_key("아이패드 1/2")
+    fake_db.child("reviews").child(key).set(make_review(product_name="아이패드 1/2"))
+
+    with captured_templates() as templates:
+        response = client.get("/review/" + "아이패드 1/2")
+        assert response.status_code == 200
+        _, context = templates[0]
+        assert context["review"]["product_name"] == "아이패드 1/2"
+        assert context["product"]["name"] == "아이패드 1/2"
+
+
+def check_review_detail_date_handles_missing_created_at():
+    """created_at이 빈 문자열이거나 필드 자체가 없어도 오류 없이 date를 ''로 넣는다."""
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    key = product.product_key("로지텍 키보드")
+
+    fake_db.child("reviews").child(key).set(make_review(created_at=""))
+    with captured_templates() as templates:
+        response = client.get("/review/" + "로지텍 키보드")
+        assert response.status_code == 200
+        assert templates[0][1]["review"]["date"] == ""
+
+    review_data = make_review()
+    del review_data["created_at"]
+    fake_db.child("reviews").child(key).set(review_data)
+    with captured_templates() as templates:
+        response = client.get("/review/" + "로지텍 키보드")
+        assert response.status_code == 200
+        assert templates[0][1]["review"]["date"] == ""
+
+
+def test_review_detail():
+    check_review_detail_missing()
+    check_review_detail_found()
+    check_review_detail_product_deleted()
+    check_review_detail_name_with_slash()
+    check_review_detail_date_handles_missing_created_at()
