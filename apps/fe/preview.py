@@ -261,6 +261,43 @@ def auth_signup():
 auth_login.methods = ["GET", "POST"]
 auth_signup.methods = ["GET", "POST"]
 
+def auction_end():
+    """상품별 경매 마감 화면 미리보기 (실제 DB 저장 없음)"""
+    name = request.args.get("name", "닌텐도 스위치 라이트")
+    product = _find_product(name)
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    # 상품별 미리보기 제안 금액
+    preview_bids = {
+        "닌텐도 스위치 라이트": [165000, 160000, 152000, 140000, 120000],
+        "아이패드 에어 5세대 64GB": [435000, 430000, 420000, 410000, 400000],
+        "필름 카메라 올림푸스 뮤2": [120000, 115000, 110000, 100000, 90000],
+        "이케아 스탠드 조명": [],
+    }
+
+    amounts = preview_bids.get(name, [])
+
+    users = ["posco_23", "ewha_ink", "cse_gyu", "hanwoori7", "art_park"]
+    dates = ["11.02 20:51", "11.02 18:05", "11.01 23:11",
+             "10.31 22:47", "10.30 19:31"]
+
+    bids = [
+        {"user": user, "amount": amount, "date": date}
+        for user, amount, date in zip(users, amounts, dates)
+    ]
+
+    return render_template(
+        "auction/end.html",
+        product=product,
+        bids=bids,
+        highest_bid=max(amounts, default=0),
+        bid_count=6 if name == "닌텐도 스위치 라이트" else len(bids),
+        bidder_count=len(set(bid["user"] for bid in bids)),
+        recent_price="15만~18만원" if name == "닌텐도 스위치 라이트" else "정보 없음",
+    )
+
 
 # 더미 데이터나 POST 처리가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
@@ -271,6 +308,7 @@ CUSTOM_VIEWS = {
     "review_done": review_done,
     "auth_login": auth_login,
     "auth_signup": auth_signup,
+    "auction_end": auction_end,
 }
 
 
