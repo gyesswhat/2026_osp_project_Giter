@@ -1,9 +1,56 @@
-"""리뷰 라우트: review_list, review_new, review_done, review_detail"""
+"""리뷰 라우트: review_list, review_new, review_done, review_detail, 찜(product_like)"""
 
-from flask import redirect, render_template, request, session, url_for
+from datetime import datetime
 
-from core import app, to_int
+from flask import abort, flash, redirect, render_template, request, session, url_for
+
+from core import app, db, to_int
 from dummy import find_product
+from routes.product import get_product, product_key
+
+
+@app.route("/product/like", methods=["POST"])
+def product_like():
+    """찜 토글. 폼: name(필수). 로그인 필요, 없는 상품은 404, 자기 상품은 상세로 redirect."""
+    user_id = session.get("id")
+    if user_id is None:
+        flash("찜하려면 로그인해 주세요.", "error")
+        return redirect(url_for("auth_login"))
+
+    name = request.form.get("name", "")
+    product = get_product(name)
+    if product is None:
+        abort(404)
+    if product.get("seller") == user_id:
+        flash("내가 올린 상품은 찜할 수 없어요.", "error")
+        return redirect(url_for("product_detail", name=name))
+
+    toggle_like(user_id, name, product)
+    return redirect(url_for("product_detail", name=name))
+
+
+def toggle_like(user_id, name, product):
+    """/likes/{user_id}/{key}를 토글하고 /products/{key}/likes를 ±1(0 미만 금지)한다.
+
+    db가 없으면 저장하지 않고 flash로만 알린다.
+    """
+    if db is None:
+        flash("지금은 찜을 저장할 수 없어요.", "error")
+        return
+
+    key = product_key(name)
+    like_ref = db.child("likes").child(user_id).child(key)
+    likes_ref = db.child("products").child(key).child("likes")
+    likes = product.get("likes", 0)
+
+    if like_ref.get().val() is None:
+        like_ref.set({"created_at": datetime.now().astimezone().isoformat(timespec="seconds")})
+        likes_ref.set(likes + 1)
+        flash("찜했어요.")
+    else:
+        like_ref.remove()
+        likes_ref.set(max(0, likes - 1))
+        flash("찜을 취소했어요.")
 
 
 @app.route("/review")
