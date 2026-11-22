@@ -5,7 +5,9 @@
   보내는 필드 (BE app.py submit_item 과 이름을 맞췄다)
   - seller       판매자 ID. 로그인 상태면 session['id']로 채우고 고칠 수 없게 둔다
   - name         상품명
-  - price        가격. 숫자만 (쉼표는 화면에서만 보이고 보낼 때 뺀다)
+  - kind         가격 정하는 방식: fixed(가격 정해서 올리기, 기본값) | bid(가격 제안 받기)
+  - price        가격. kind=fixed일 때만 보낸다. 숫자만 (쉼표는 화면에서만 보이고 보낼 때 뺀다)
+  - duration     제안 받는 기간(일): 1 | 3 | 5 | 7. kind=bid일 때만 보낸다 (schema.dbml auctions.duration_days)
   - address      주소 (거래 기본 장소)
   - status       상품 상태: 최상 | 상 | 중 | 하
   - description  상세 설명
@@ -16,7 +18,8 @@
   - errors: 필드별 오류 메시지 dict. 예) {'price': '가격은 숫자로 입력해 주세요.'}
   ※ 사진 파일은 브라우저가 다시 채워 주지 않으므로 오류 후에는 다시 골라야 한다.
 
-  고정가/경매 전환, 거래 가능 장소·시간은 11/13 이후 작업 (fe_milestone.md)
+  방식에 맞지 않는 칸(fixed의 duration, bid의 price)은 화면에서 disabled로 바꿔 보내지 않는다. (static/js/product.js)
+  거래 가능 장소·시간은 별도 작업 (fe_milestone.md)
 #}
 {% extends "base.html" %}
 {% from "components/_form_fields.html" import button, input, textarea, chip_group %}
@@ -26,6 +29,13 @@
 {% set err = errors or {} %}
 {% set login_id = session.get('id') %}
 {% set grades = [('최상', '최상'), ('상', '상'), ('중', '중'), ('하', '하')] %}
+{% set kind = 'bid' if f.kind == 'bid' else 'fixed' %}
+{% set durations = [('1', '1일'), ('3', '3일'), ('5', '5일'), ('7', '7일')] %}
+{% set duration = (f.duration | string) if (f.duration | string) in ['1', '3', '5', '7'] else '3' %}
+{% set kinds = [
+  ('fixed', '가격 정해서 올리기', '내가 정한 가격에 팔아요.'),
+  ('bid', '가격 제안 받기', '가격 없이 올리고, 마감 때 가장 높은 제안을 보고 거래할지 정해요.'),
+] %}
 
 {% block title %}상품 등록 | BoughtIT{% endblock %}
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/product.css') }}">{% endblock %}
@@ -75,8 +85,48 @@
       {{ input('name', '상품명', value=f.name, required=true, error=err.name,
                placeholder='예: 컴퓨터구조 및 설계 5판', attrs={'maxlength': 40}) }}
 
-      {{ input('price', '가격', value=f.price, required=true, error=err.price, suffix='원', placeholder='0',
-               class='max-w-xs', attrs={'inputmode': 'numeric', 'autocomplete': 'off', 'data-price-input': true}) }}
+      {# 가격 정하는 방식: radio를 카드 모양으로 꾸민다. 고른 방식에 맞는 상자만 보인다 (static/js/product.js) #}
+      <div>
+        <p id="kind-label" class="label">가격 정하는 방식 <span class="text-stamp" aria-hidden="true">*</span></p>
+        <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-labelledby="kind-label" data-kind-group>
+          {% for value, title, desc in kinds %}
+            <label class="mode-card cursor-pointer rounded-sm border border-dashed border-muted p-4 hover:border-brandink">
+              <input type="radio" name="kind" value="{{ value }}" class="sr-only"
+                     {% if value == kind %}checked{% endif %} aria-describedby="kind-{{ value }}-desc">
+              <span class="block font-bold">{{ title }}</span>
+              <span id="kind-{{ value }}-desc" class="mt-1 block break-keep text-sm text-muted">{{ desc }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        {% if err.kind %}<p id="kind-msg" class="error" role="alert">{{ err.kind }}</p>{% endif %}
+      </div>
+
+      <div data-kind-box="fixed"{% if kind != 'fixed' %} hidden{% endif %}>
+        {{ input('price', '가격', value=f.price, required=true, error=err.price, suffix='원', placeholder='0',
+                 class='max-w-xs', attrs={'inputmode': 'numeric', 'autocomplete': 'off', 'data-price-input': true,
+                                          'disabled': kind != 'fixed'}) }}
+      </div>
+
+      <div class="space-y-5" data-kind-box="bid"{% if kind != 'bid' %} hidden{% endif %}>
+        <div>
+          {{ chip_group('duration', durations, selected=duration, required=true, id='duration',
+                        label=('제안 받는 기간 <span class="text-stamp" aria-hidden="true">*</span>' | safe)) }}
+          {% if err.duration %}
+            <p id="duration-msg" class="error" role="alert">{{ err.duration }}</p>
+          {% else %}
+            <p id="duration-msg" class="error" hidden></p>
+          {% endif %}
+          <p class="help">마감 <span class="num text-ink" data-duration-end>등록한 때부터 {{ duration }}일 뒤</span></p>
+        </div>
+        <div class="rounded-sm bg-bg p-4 text-sm">
+          <p class="font-semibold">마감되면 이렇게 진행돼요</p>
+          <ol class="mt-2 list-decimal space-y-1 break-keep pl-5 text-muted">
+            <li>기간 동안 벗들이 금액을 제안해요. 새 제안은 지금 최고가보다 높아야 해요.</li>
+            <li>마감되면 가장 높은 제안 금액과 제안자를 알려 드려요.</li>
+            <li>거래할지 말지는 판매자가 정해요. 금액이 아쉬우면 거래하지 않아도 돼요.</li>
+          </ol>
+        </div>
+      </div>
 
       {{ input('address', '주소', value=f.address, required=true, error=err.address,
                placeholder='예: ECC 8번 출구 앞', help='만나서 거래할 기본 장소를 적어 주세요.') }}
@@ -97,7 +147,7 @@
 
       <div class="tear flex justify-end gap-2 pt-6">
         {{ button('취소', variant='quiet', href=url_for('product_list')) }}
-        {{ button('상품 등록', type='submit') }}
+        {{ button('제안 받기 시작' if kind == 'bid' else '상품 등록', type='submit', attrs={'data-submit-label': true}) }}
       </div>
     </form>
   </div>

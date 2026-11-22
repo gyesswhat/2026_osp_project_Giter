@@ -169,8 +169,13 @@ def product_new():
                         ("address", "거래할 주소를 입력해 주세요."), ("description", "상세 설명을 입력해 주세요.")]:
         if not form.get(field, "").strip():
             errors[field] = text
-    if _int(form.get("price")) is None:
+    kind = form.get("kind", "fixed")
+    if kind not in ("fixed", "bid"):
+        errors["kind"] = "가격 정하는 방식을 골라 주세요."
+    elif kind == "fixed" and _int(form.get("price")) is None:
         errors["price"] = "가격을 숫자로 입력해 주세요."
+    elif kind == "bid" and _int(form.get("duration")) not in (1, 3, 5, 7):
+        errors["duration"] = "제안 받는 기간을 골라 주세요."
     if form.get("status") not in ("최상", "상", "중", "하"):
         errors["status"] = "상품 상태를 골라 주세요."
     if form.get("name", "").strip().lower() in RESERVED_NAMES:
@@ -181,9 +186,11 @@ def product_new():
         return render_template("product/new.html", form=form, errors=errors), 400
 
     product = {k: form.get(k, "").strip() for k in ("seller", "name", "address", "status", "description")}
-    product.update(price=_int(form["price"]), likes=0, sale_status="sale", kind="fixed")
+    # bid의 price는 지금 최고 제안가라서 제안이 없는 새 상품은 0으로 둔다
+    product.update(price=_int(form.get("price"), 0) if kind == "fixed" else 0,
+                   likes=0, sale_status="sale", kind=kind)
     PREVIEW_PRODUCTS.insert(0, product)
-    flash("상품을 등록했어요.")
+    flash(f"상품을 등록했어요. {form['duration']}일 동안 제안을 받아요." if kind == "bid" else "상품을 등록했어요.")
     return redirect(url_for("product_detail", name=product["name"]))
 
 
