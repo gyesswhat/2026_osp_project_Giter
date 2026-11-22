@@ -16,18 +16,6 @@
 {% block title %}경매 상세 | BoughtIT{% endblock %}
 
 {% block content %}
-  {# 임시 데이터: 추후 BE 연동 시 교체 #}
-  {% set product = {
-    'name': '아이패드 에어 5세대 64GB',
-    'seller': 'posco_ipad',
-    'address': '포스코관 1층',
-    'date': '2026.10.31',
-    'description': '2년 쓴 아이패드 에어 5세대 와이파이 모델입니다. 배터리 효율 88%, 액정 기스 없고 케이스 끼워서만 썼어요. 충전기는 없어요.'
-  } %}
-  {% set highest_bid = 435000 %}
-  {% set bid_count = 7 %}
-  {% set remaining_time = '2일 13:21:06' %}
-  {% set end_date = '11.23 (월) 14:28' %}
 
   <div class="grid gap-8 md:grid-cols-2 md:gap-12">
 
@@ -91,7 +79,7 @@
         {{ product.description }}
       </p>
       {# 제안 금액 입력 폼 #}
-      <form id="bidForm" class="panel mt-6 p-4">
+      <form id="bidForm" class="panel mt-6 p-4" data-highest-bid="{{ highest_bid }}">
         <label class="label" for="bidInput">내 제안 금액</label>
 
         <div class="flex flex-wrap items-end gap-3">
@@ -103,7 +91,7 @@
               class="field pr-10 font-mono"
               inputmode="numeric"
               autocomplete="off"
-              placeholder="440,000원 이상"
+              placeholder="{{ '{:,}'.format(highest_bid + 5000) }}원 이상"
               aria-describedby="bidMsg"
             >
             <span class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">
@@ -133,16 +121,7 @@
       </form>
     </div>
   </div>
-  {# 제안 내역: 임시 데이터 #}
-  {% set bids = [
-    {'user': 'ab***12', 'date': '11.20 14:30', 'price': 435000},
-    {'user': 'ki***07', 'date': '11.20 12:15', 'price': 430000},
-    {'user': 'ew***25', 'date': '11.19 18:42', 'price': 420000},
-    {'user': 'mi***03', 'date': '11.19 15:10', 'price': 410000},
-    {'user': 'so***18', 'date': '11.18 20:35', 'price': 400000},
-    {'user': 'ha***09', 'date': '11.18 16:22', 'price': 390000},
-    {'user': 'ju***21', 'date': '11.17 11:05', 'price': 380000}
-  ] %}
+
 
   <section class="panel mt-10 p-5 sm:p-7">
     <h2 class="text-xl font-extrabold tracking-tight">제안 내역</h2>
@@ -167,6 +146,7 @@
             {{ bid.date }}
           </span>
 
+          
           <span class="leader"></span>
 
           <span class="num {% if loop.first %}text-brandink{% endif %}">
@@ -177,7 +157,15 @@
             <span class="tag-bid">최고</span>
           {% endif %}
         </li>
+      {% else %}
+        <li class="py-6 text-center text-gray-500">
+          아직 제안 내역이 없습니다.
+        </li>
       {% endfor %}
     </ol>
   </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/auction_detail.js') }}"></script>
 {% endblock %}

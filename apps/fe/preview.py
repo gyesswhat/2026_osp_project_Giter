@@ -140,6 +140,36 @@ def product_detail(name):
     return render_template("product/detail.html", product=product, liked=False)
 
 
+def auction_detail():
+    """경매 상세 미리보기: 상품명으로 경매 상품을 조회"""
+    name = request.args.get("name", "아이패드 에어 5세대 64GB")
+    product = _find_product(name)
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    highest_bid = int(product["price"])
+
+    if highest_bid==0:
+        bids=[]
+    else:
+        bids = [
+            {"user": "ab***12", "date": "11.20 14:30", "price": highest_bid},
+            {"user": "ki***07", "date": "11.20 12:15", "price": highest_bid - 5000},
+            {"user": "ew***25", "date": "11.19 18:42", "price": highest_bid - 15000},
+        ]   
+
+    return render_template(
+        "auction/detail.html",
+        product=product,
+        bids=bids,
+        highest_bid=int(product["price"]),
+        bid_count=len(bids),
+        remaining_time="2일 13:21:06",
+        end_date="11.23 (월) 14:28",
+    )
+
+
 def product_reserve():
     """약속 신청 미리보기. 폼 값(name, place, slot)을 확인하고 상세로 돌아간다 (저장하지 않음)"""
     product = _find_product(request.form.get("name", ""))
@@ -266,6 +296,7 @@ auth_signup.methods = ["GET", "POST"]
 CUSTOM_VIEWS = {
     "product_list": product_list,
     "product_detail": product_detail,
+    "auction_detail": auction_detail,
     "product_new": product_new,
     "review_new": review_new,
     "review_done": review_done,
