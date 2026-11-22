@@ -7,3 +7,5 @@ static/uploads/*
 *.pdf
 authentication/
 /docs/
+.DS_Store
+static/.DS_Store
