@@ -32,24 +32,26 @@ def product_like():
 def toggle_like(user_id, name, product):
     """/likes/{user_id}/{key}를 토글하고 /products/{key}/likes를 ±1(0 미만 금지)한다.
 
-    db가 없으면 저장하지 않고 flash로만 알린다.
+    db가 없으면 저장하지 않고 flash로만 알린다. pyrebase의 db.child()는 같은 db 객체에
+    경로를 이어 붙이고 get()/set()/remove() 실행 후에야 경로를 비우므로, ref를 변수에
+    저장해 재사용하지 않고 매번 db.child(...)...부터 다시 체인으로 실행한다.
     """
     if db is None:
         flash("지금은 찜을 저장할 수 없어요.", "error")
         return
 
     key = product_key(name)
-    like_ref = db.child("likes").child(user_id).child(key)
-    likes_ref = db.child("products").child(key).child("likes")
     likes = product.get("likes", 0)
 
-    if like_ref.get().val() is None:
-        like_ref.set({"created_at": datetime.now().astimezone().isoformat(timespec="seconds")})
-        likes_ref.set(likes + 1)
+    if db.child("likes").child(user_id).child(key).get().val() is None:
+        db.child("likes").child(user_id).child(key).set(
+            {"created_at": datetime.now().astimezone().isoformat(timespec="seconds")}
+        )
+        db.child("products").child(key).child("likes").set(likes + 1)
         flash("찜했어요.")
     else:
-        like_ref.remove()
-        likes_ref.set(max(0, likes - 1))
+        db.child("likes").child(user_id).child(key).remove()
+        db.child("products").child(key).child("likes").set(max(0, likes - 1))
         flash("찜을 취소했어요.")
 
 

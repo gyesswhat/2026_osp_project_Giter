@@ -26,41 +26,49 @@ class FakeSnapshot:
         return self._value
 
 
-class FakeRef:
-    def __init__(self, store, path):
-        self.store = store
-        self.path = path
+class FakeDb:
+    """pyrebase처럼 하나의 객체가 경로 상태를 들고 있다.
+
+    child()는 self.path에 이어 붙이고 self를 반환한다(새 객체를 만들지 않는다).
+    get()/set()/remove()는 실행 후 self.path를 비운다. 그래서 ref를 변수에 저장해 두고
+    나중에 또 child()를 이어 부르면 경로가 섞인다 — set()을 변수로 저장한 ref에 바로 쓰지 말고
+    매번 db.child(...).child(...).get()/set()/remove()처럼 한 줄 체인으로 실행해야 한다.
+    """
+
+    def __init__(self):
+        self.store = {}
+        self.path = []
 
     def child(self, key):
-        return FakeRef(self.store, self.path + (str(key),))
+        self.path.append(str(key))
+        return self
 
     def get(self):
         node = self.store
         for key in self.path:
             if not isinstance(node, dict) or key not in node:
-                return FakeSnapshot(None)
+                node = None
+                break
             node = node[key]
+        self.path = []
         return FakeSnapshot(node)
 
     def set(self, value):
+        assert self.path, "루트 경로(path가 비어 있음)에 set()을 호출했어요 — DB 전체를 덮어쓸 수 있어요."
         node = self.store
         for key in self.path[:-1]:
             node = node.setdefault(key, {})
         node[self.path[-1]] = value
+        self.path = []
+        return value
 
     def remove(self):
+        assert self.path, "루트 경로(path가 비어 있음)에 remove()를 호출했어요 — DB 전체를 지울 수 있어요."
         node = self.store
         for key in self.path[:-1]:
             node = node.get(key, {})
         node.pop(self.path[-1], None)
-
-
-class FakeDb:
-    def __init__(self):
-        self.store = {}
-
-    def child(self, key):
-        return FakeRef(self.store, (str(key),))
+        self.path = []
 
 
 def seed_product(fake_db, **fields):
