@@ -1,16 +1,24 @@
-"""찜(product_like) 라우트 확인
+"""찜(product_like), 리뷰 쓰기(review_new)·완료(review_done) 라우트 확인
 
 실행: (apps/be에서) python -m pytest test_review.py
-pyrebase db를 흉내 내는 FakeDb를 review.db, product.db에 주입해서 찜 추가/취소를 확인한다.
+pyrebase db를 흉내 내는 FakeDb를 review.db, product.db에 주입해서 찜/리뷰 저장을 확인한다.
 """
 
+import io
+import os
+import tempfile
 from urllib.parse import quote
 
 from core import app
 # 헤더의 url_for가 찾는 라우트를 모두 등록한다 (app.py와 같은 import)
 from routes import auction, auth, chat, my, product, review, wanted  # noqa: F401
 
+product.UPLOAD_DIR = tempfile.mkdtemp()
 client = app.test_client()
+
+
+def uploaded_files():
+    return set(os.listdir(product.UPLOAD_DIR))
 
 
 def detail_path(name):
@@ -203,3 +211,184 @@ def test_review():
     check_likes_not_below_zero()
     check_route_priority()
     check_db_none_does_not_crash()
+
+
+def review_new_get(**args):
+    return client.get("/review/new", query_string=args)
+
+
+def review_new_post(**fields):
+    form = {"product_name": "아이패드 1/2", "rating": "5", "title": "제목", "content": "내용"}
+    form.update(fields)
+    return client.post("/review/new", data=form, content_type="multipart/form-data")
+
+
+def check_review_new_requires_login():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    logout()
+    assert review_new_get().headers["Location"] == "/login"
+    assert review_new_post().headers["Location"] == "/login"
+
+
+def check_review_new_missing_fields():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, seller="owner")
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post(title="", content="")
+    assert response.status_code == 400
+    text = response.get_data(as_text=True)
+    assert "제목을 입력해 주세요." in text and "내용을 입력해 주세요." in text
+    assert uploaded_files() == before
+
+
+def check_review_new_missing_product():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post(product_name="없는 상품")
+    assert response.status_code == 400
+    assert "없는 상품이에요." in response.get_data(as_text=True)
+    assert uploaded_files() == before
+
+
+def check_review_new_rating_out_of_range():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, seller="owner")
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post(rating="9")
+    assert response.status_code == 400
+    assert "별점을 1~5점 중에서 골라 주세요." in response.get_data(as_text=True)
+    assert uploaded_files() == before
+
+
+def check_review_new_own_product():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, seller="tester")
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post()
+    assert response.status_code == 400
+    assert "내가 올린 상품에는 리뷰를 쓸 수 없어요." in response.get_data(as_text=True)
+    assert uploaded_files() == before
+
+
+def check_review_new_duplicate():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, seller="owner")
+    key = product.product_key("아이패드 1/2")
+    fake_db.child("reviews").child(key).set(
+        {
+            "product_name": "아이패드 1/2",
+            "reviewer": "someone",
+            "seller": "owner",
+            "rating": 4,
+            "title": "t",
+            "content": "c",
+            "photo": "",
+            "created_at": "x",
+        }
+    )
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post()
+    assert response.status_code == 400
+    assert "이미 리뷰를 작성한 상품이에요." in response.get_data(as_text=True)
+    assert uploaded_files() == before
+
+
+def check_review_new_validation_failure_does_not_save_photo():
+    """검증(title 누락)에 실패하면 사진은 유효해도 저장되면 안 된다."""
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, seller="owner")
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post(title="", photo=(io.BytesIO(b"\x89PNG"), "사진.png"))
+    assert response.status_code == 400
+    assert uploaded_files() == before
+
+
+def check_review_new_db_none_does_not_save_photo():
+    """db가 없으면 검증을 통과해도 사진을 저장하지 않고 flash만 한다."""
+    review.db = None
+    product.db = None
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post(product_name="컴퓨터구조 및 설계 5판", photo=(io.BytesIO(b"\x89PNG"), "사진.png"))
+    assert response.status_code == 200
+    assert "지금은 리뷰를 저장할 수 없어요." in response.get_data(as_text=True)
+    assert uploaded_files() == before
+
+
+def check_review_new_success_and_done():
+    fake_db = FakeDb()
+    review.db = fake_db
+    product.db = fake_db
+    seed_product(fake_db, seller="owner")
+    key = product.product_key("아이패드 1/2")
+    login("tester")
+    before = uploaded_files()
+
+    response = review_new_post(reviewer="someone_else", title="좋아요", content="잘 받았어요.")
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/review/done"
+
+    saved = fake_db.store["reviews"][key]
+    assert saved["reviewer"] == "tester"  # 폼의 reviewer 값은 무시하고 session['id']를 쓴다
+    assert saved["seller"] == "owner"  # products.seller를 복사해 저장한다
+    assert saved["photo"] == ""
+    assert uploaded_files() == before  # 사진을 올리지 않았으니 새 파일이 없어야 한다
+
+    done = client.get("/review/done")
+    assert done.status_code == 200
+    text = done.get_data(as_text=True)
+    assert "좋아요" in text and "잘 받았어요." in text and "tester" in text
+
+
+def check_review_done_without_last_review():
+    logout()
+    with client.session_transaction() as sess:
+        sess.pop("last_review", None)
+    response = client.get("/review/done")
+    assert response.status_code == 200
+    assert "방금 등록한 리뷰 정보가 없어요." in response.get_data(as_text=True)
+
+
+def test_review_new():
+    # 다른 테스트 파일이 같은 product.UPLOAD_DIR을 공유하므로(수집 순서에 따라 바뀔 수 있다)
+    # 이 테스트만의 깨끗한 업로드 폴더로 다시 잡아 둔다.
+    product.UPLOAD_DIR = tempfile.mkdtemp()
+    check_review_new_requires_login()
+    check_review_new_missing_fields()
+    check_review_new_missing_product()
+    check_review_new_rating_out_of_range()
+    check_review_new_own_product()
+    check_review_new_duplicate()
+    check_review_new_validation_failure_does_not_save_photo()
+    check_review_new_db_none_does_not_save_photo()
+    check_review_new_success_and_done()
+    check_review_done_without_last_review()
+    # 검증 실패·저장 불가 케이스 전체에서 static/uploads에 파일이 남지 않았는지 최종 확인한다
+    assert uploaded_files() == set()

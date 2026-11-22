@@ -5,8 +5,7 @@ from datetime import datetime
 from flask import abort, flash, redirect, render_template, request, session, url_for
 
 from core import app, db, to_int
-from dummy import find_product
-from routes.product import get_product, product_key
+from routes.product import get_product, product_key, save_picture, validate_picture
 
 
 @app.route("/product/like", methods=["POST"])
@@ -64,48 +63,88 @@ def review_list():
 
 @app.route("/review/new", methods=["GET", "POST"])
 def review_new():
-    """리뷰 작성. GET: ?name=상품명. POST: product_name, reviewer, rating, title, photo, content"""
-    name = request.values.get("product_name") or request.args.get("name", "")
-    product = find_product(name)
+    """리뷰 작성. 로그인 필요. GET: ?name=상품명. POST(multipart/form-data): product_name, rating, title, content, photo"""
+    reviewer = session.get("id")
+    if reviewer is None:
+        flash("리뷰를 쓰려면 로그인해 주세요.", "error")
+        return redirect(url_for("auth_login"))
+
     if request.method == "GET":
+        name = request.args.get("name", "")
+        product = get_product(name) if name else None
         return render_template("review/new.html", product=product)
 
     form = request.form
     errors = {}
-    reviewer = session.get("id") or form.get("reviewer", "").strip()
-    if not reviewer:
-        errors["reviewer"] = "작성자 ID를 입력해 주세요."
-    for field, text in [
-        ("product_name", "상품명을 입력해 주세요."),
-        ("title", "제목을 입력해 주세요."),
-        ("content", "내용을 입력해 주세요."),
-    ]:
+
+    product_name = form.get("product_name", "").strip()
+    product = None
+    if not product_name:
+        errors["product_name"] = "상품명을 입력해 주세요."
+    else:
+        product = get_product(product_name)
+        if product is None:
+            errors["product_name"] = "없는 상품이에요."
+        elif product.get("seller") == reviewer:
+            errors["product_name"] = "내가 올린 상품에는 리뷰를 쓸 수 없어요."
+        elif get_review(product_name) is not None:
+            errors["product_name"] = "이미 리뷰를 작성한 상품이에요."
+
+    for field, text in [("title", "제목을 입력해 주세요."), ("content", "내용을 입력해 주세요.")]:
         if not form.get(field, "").strip():
             errors[field] = text
+
     rating = to_int(form.get("rating"))
     if rating not in range(1, 6):
         errors["rating"] = "별점을 1~5점 중에서 골라 주세요."
+
     photo = request.files.get("photo")
-    if photo and photo.filename and not (photo.mimetype or "").startswith("image/"):
-        errors["photo"] = "사진 파일만 올릴 수 있어요."
+    if photo and photo.filename:
+        photo_error = validate_picture(photo)
+        if photo_error is not None:
+            errors["photo"] = photo_error
+
     if errors:
         return render_template("review/new.html", product=product, form=form, errors=errors), 400
 
-    session["last_review"] = {
+    if db is None:
+        flash("지금은 리뷰를 저장할 수 없어요.", "error")
+        return render_template("review/new.html", product=product, form=form, errors=errors)
+
+    review = {
+        "product_name": product_name,
         "reviewer": reviewer,
-        "product_name": form["product_name"].strip(),
+        "seller": product.get("seller"),
         "rating": rating,
         "title": form["title"].strip(),
         "content": form["content"].strip(),
-        "photo": photo.filename if photo and photo.filename else "",
+        "photo": save_picture(photo) if photo and photo.filename else "",
+        "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
+    save_review(review)
+    session["last_review"] = product_name
+    flash("리뷰를 등록했어요.")
     return redirect(url_for("review_done"))
 
 
 @app.route("/review/done")
 def review_done():
-    """리뷰 등록 완료. 세션에 저장한 last_review를 보여 준다."""
-    return render_template("review/done.html", review=session.get("last_review"))
+    """리뷰 등록 완료. 세션에 저장한 last_review(상품명)로 리뷰를 읽어 보여 준다."""
+    name = session.get("last_review")
+    review = get_review(name) if name else None
+    return render_template("review/done.html", review=review)
+
+
+def get_review(name):
+    """/reviews/{product_key(name)}를 읽는다. db가 없으면 None."""
+    if db is None:
+        return None
+    return db.child("reviews").child(product_key(name)).get().val()
+
+
+def save_review(review):
+    """/reviews/{product_key(product_name)}에 저장한다."""
+    db.child("reviews").child(product_key(review["product_name"])).set(review)
 
 
 @app.route("/review/<path:name>")
