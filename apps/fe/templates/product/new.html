@@ -88,7 +88,7 @@
       {# 가격 정하는 방식: radio를 카드 모양으로 꾸민다. 고른 방식에 맞는 상자만 보인다 (static/js/product.js) #}
       <div>
         <p id="kind-label" class="label">가격 정하는 방식 <span class="text-stamp" aria-hidden="true">*</span></p>
-        <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-labelledby="kind-label" data-kind-group>
+        <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-labelledby="kind-label" aria-describedby="kind-msg" data-kind-group>
           {% for value, title, desc in kinds %}
             <label class="mode-card cursor-pointer rounded-sm border border-dashed border-muted p-4 hover:border-brandink">
               <input type="radio" name="kind" value="{{ value }}" class="sr-only"
@@ -98,7 +98,11 @@
             </label>
           {% endfor %}
         </div>
-        {% if err.kind %}<p id="kind-msg" class="error" role="alert">{{ err.kind }}</p>{% endif %}
+        {% if err.kind %}
+          <p id="kind-msg" class="error" role="alert">{{ err.kind }}</p>
+        {% else %}
+          <p id="kind-msg" class="error" hidden></p>
+        {% endif %}
       </div>
 
       <div data-kind-box="fixed"{% if kind != 'fixed' %} hidden{% endif %}>
