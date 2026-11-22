@@ -38,8 +38,8 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 예정 |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
-| 경매 상세 | GET | `/auction/detail` | `auction_detail` | `auction/detail.html` | 예정 |
-| 경매 마감 | GET | `/auction/end` | `auction_end` | `auction/end.html` | 예정 |
+| 경매 상세 | GET | `/auction/detail` | `auction_detail` | `auction/detail.html` | 예정 (카드가 `name`을 넘김, BE는 501 스텁) |
+| 경매 마감 | GET | `/auction/end` | `auction_end` | `auction/end.html` | 예정 (카드가 `name`을 넘김, BE는 501 스텁) |
 
 예정 화면의 경로는 자리만 잡아 둔 것입니다. 상세 화면(구해요·경매)은 화면을 만들 때 위 규칙대로 경로 파라미터를 정해서 이 표를 고칩니다.
 
@@ -49,6 +49,12 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 쿼리: `q` 검색어, `sort` new·like·low·high, `sale_status` all·sale·hold, `kind` all·fixed·bid, `price_min`·`price_max` 원 단위(없으면 제한 없음), `page` 1부터
 - 템플릿에 넘길 값: `products`(현재 페이지 상품 dict 목록), `total`, `page`, `total_pages`
 - 거래 완료(`sale_status == 'done'`) 상품은 목록에서 뺍니다.
+- 경매 상품(`kind == 'bid'`)에는 카드가 쓰는 값을 함께 넣습니다 (schema.dbml `auctions`, 자세한 내용은 `components/_product_card.html` 주석)
+  - `price`: 지금 최고 제안가 `top_price` (제안이 없으면 0)
+  - `bid_count`: 제안 수
+  - `end_at`: 마감 시각 ISO 문자열. 예) `2026-11-25T14:30:00+09:00`. 남은 시간은 화면에서 계산합니다
+  - `closed`: 마감 여부 (요청 시점에 `end_at`과 비교)
+- 카드 링크: 고정가 → `product_detail(name)`, 진행 중인 경매 → `auction_detail(name)`, 마감된 경매 → `auction_end(name)`
 
 ### `product_detail` `/product/<path:name>`
 - 템플릿에 넘길 값: `product`(dict), `liked`(선택), `image`(선택)
@@ -125,7 +131,7 @@ BE 라우트를 아래처럼 바꾸면 FE 템플릿과 그대로 연결됩니다
 | 출발 | 링크 | 라우트 |
 | --- | --- | --- |
 | 헤더 | 로고, 상품·구해요·리뷰·채팅·마이 탭, 상품 등록, 로그인, 로그아웃 | `product_list` `wanted_list` `review_list` `chat_room` `my_index` `product_new` `auth_login` `auth_logout` |
-| 상품 목록 | 상품 카드, 필터 폼, 페이지 번호 | `product_detail(name)` `product_list` |
+| 상품 목록 | 상품 카드(고정가·경매·마감된 경매), 필터 폼, 페이지 번호 | `product_detail(name)` `auction_detail(name)` `auction_end(name)` `product_list` |
 | 상품 상세 | 판매자와 채팅, 판매자 리뷰 보기, 리뷰 쓰기(거래 완료), 약속 신청 폼 | `chat_room` `review_list(seller)` `review_new(name)` `product_reserve` |
 | 상품 등록 | 폼, 취소 | `product_new` `product_list` |
 | 리뷰 목록 | 리뷰 쓰기, 리뷰 카드 | `review_new` `review_detail(name)` |

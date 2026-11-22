@@ -11,15 +11,42 @@
   - address     거래 장소 (선택)
   - likes       찜 수 (선택)
 
+  경매 상품 필드 (kind=bid일 때, schema.dbml auctions 기준)
+  - kind        fixed(가격 정해진 물건, 기본값) | bid(가격 제안 받는 중)
+  - price       bid이면 지금 최고 제안가(auctions.top_price). 제안이 없으면 0
+  - bid_count   제안 수(auctions.bid_count). 없으면 제안 수를 표시하지 않는다
+  - end_at      마감 시각 ISO 문자열(auctions.end_at). 예) 2026-11-25T14:30:00+09:00
+                남은 시간은 화면에서 계산해 1분마다 갱신한다 (static/js/common.js)
+  - closed      마감 여부. BE가 요청 시점에 end_at과 비교해 정한다
+
   인자
-  - href:      카드를 눌렀을 때 갈 주소. 예) url_for('product_detail', name=p.name)
+  - href:      카드를 눌렀을 때 갈 주소. 주지 않으면 product_url(product)
+               (고정가는 상품 상세, 경매는 경매 상세, 마감된 경매는 경매 마감)
   - image:     이미지 주소를 직접 줄 때 (시안용 더미 등). 주면 img_path보다 우선
   - show_sale: 판매중 뱃지도 카드에 표시할지. 시안은 판매중일 때 뱃지를 달지 않아 기본 false
 
   그리드 예) <div class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
-              {% for p in products %}{{ product_card(p, url_for('product_detail', name=p.name)) }}{% endfor %}
+              {% for p in products %}{{ product_card(p) }}{% endfor %}
             </div>
 #}
+
+{# 카드를 눌렀을 때 갈 주소. 경매 상세 경로가 바뀌어도 url_for라서 여기는 그대로 둔다 #}
+{% macro product_url(product) -%}
+  {%- if product.get('kind') == 'bid' -%}
+    {{ url_for('auction_end' if product.get('closed') else 'auction_detail', name=product.name) }}
+  {%- else -%}
+    {{ url_for('product_detail', name=product.name) }}
+  {%- endif -%}
+{%- endmacro %}
+
+{# 경매 태그 문구. JS가 꺼져 있을 때 보이는 값이고, 진행 중이면 common.js가 "2일 13시간 남음"으로 바꾼다 #}
+{% macro _auction_tag_text(product) -%}
+  {%- set end = (product.get('end_at') or '') | string -%}
+  {%- if product.get('closed') -%}제안 마감
+  {%- elif end | length >= 16 -%}{{ end[5:7] | int }}.{{ end[8:10] }} {{ end[11:16] }} 마감
+  {%- else -%}가격 제안 받는 중
+  {%- endif -%}
+{%- endmacro %}
 
 {# 18000 -> "18,000원". 숫자가 아니면 그대로 출력 #}
 {% macro won(value) -%}
@@ -38,21 +65,33 @@
   {%- endif -%}
 {%- endmacro %}
 
-{% macro product_card(product, href='#', image=none, show_sale=false) -%}
+{% macro product_card(product, href=none, image=none, show_sale=false) -%}
   {%- set status = product.sale_status or 'sale' -%}
+  {#- 경매 필드는 고정가 상품에 없으므로 get으로 읽는다 (없는 필드를 바로 쓰면 오류가 나는 설정) -#}
+  {%- set bid = product.get('kind') == 'bid' -%}
+  {%- set closed = bid and product.get('closed') -%}
+  {%- set bid_count = product.get('bid_count') -%}
+  {%- set href = href or product_url(product) -%}
+  {%- set top = (product.price | string) | replace(',', '') | int(0) -%}
+  {%- set has_bid = (bid_count | int(0)) > 0 or top > 0 -%}
   {%- set src = image or (url_for('static', filename='uploads/' ~ product.img_path) if product.img_path else none) -%}
   <article class="slip min-w-0">
     <a href="{{ href }}" class="block" aria-label="{{ product.name }} 상세 보기">
       <div class="ph relative aspect-square max-w-full overflow-hidden">
         {%- if src %}
           <img src="{{ src }}" alt="" loading="lazy"
-               class="h-full w-full object-cover {{ 'opacity-50' if status == 'done' }}">
+               class="h-full w-full object-cover {{ 'opacity-50' if status == 'done' or closed }}">
         {%- else %}
           <span class="center text-sm text-muted">이미지 없음</span>
         {%- endif %}
         {%- if status == 'done' %}
           {{ status_badge('done', 'absolute bottom-3 left-3') }}
-        {%- elif status == 'hold' or show_sale %}
+        {%- elif status == 'hold' %}
+          {{ status_badge(status, 'absolute bottom-2.5 left-2.5') }}
+        {%- elif bid %}
+          <span class="tag-bid absolute bottom-2.5 left-2.5"
+                {%- if product.get('end_at') and not closed %} data-end-at="{{ product.end_at }}"{% endif %}>{{ _auction_tag_text(product) }}</span>
+        {%- elif show_sale %}
           {{ status_badge(status, 'absolute bottom-2.5 left-2.5') }}
         {%- endif %}
       </div>
@@ -61,14 +100,30 @@
       <h3 class="break-keep font-semibold leading-snug">
         <a href="{{ href }}" class="hover:text-brandink">{{ product.name }}</a>
       </h3>
-      <div class="row text-sm">
-        <span class="text-muted">가격</span><span class="leader"></span>
-        <span class="num text-[15px] text-brandink">{{ won(product.price) }}</span>
+      <div class="row text-sm{{ ' flex-wrap' if bid }}">
+        {%- if bid %}
+          {#- 라벨과 금액은 글자 단위로 꺾지 않는다. 폭이 모자라면(320px 등) 금액만 다음 줄 오른쪽으로 내려간다 -#}
+          <span class="shrink-0 whitespace-nowrap text-muted">{{ '최고 제안' if has_bid else '제안' }}</span><span class="leader"></span>
+          {%- if has_bid %}
+            <span class="num ml-auto shrink-0 whitespace-nowrap text-[15px] text-brandink">{{ won(top) }}</span>
+          {%- else %}
+            <span class="num ml-auto shrink-0 whitespace-nowrap text-[15px] text-muted">첫 제안 대기</span>
+          {%- endif %}
+        {%- else %}
+          <span class="text-muted">가격</span><span class="leader"></span>
+          <span class="num text-[15px] text-brandink">{{ won(product.price) }}</span>
+        {%- endif %}
       </div>
-      {%- if product.address or product.likes is defined %}
+      {%- set show_count = bid and not closed and bid_count is not none %}
+      {%- if product.address or product.likes is defined or show_count %}
         <p class="flex justify-between gap-2 text-xs text-muted">
           <span class="truncate">{{ product.address or '' }}</span>
-          {%- if product.likes is defined %}<span class="shrink-0 font-mono">찜 {{ product.likes }}</span>{% endif %}
+          {%- if product.likes is defined or show_count %}
+            <span class="shrink-0 font-mono">
+              {%- if show_count %}제안 {{ bid_count }}{% if product.likes is defined %} · {% endif %}{% endif -%}
+              {%- if product.likes is defined %}찜 {{ product.likes }}{% endif -%}
+            </span>
+          {%- endif %}
         </p>
       {%- endif %}
       {{ caller() if caller }}
