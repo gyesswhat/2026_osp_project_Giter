@@ -38,8 +38,9 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 예정 |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
-| 경매 상세 | GET | `/auction/detail` | `auction_detail` | `auction/detail.html` | 예정 (카드가 `name`을 넘김, BE는 501 스텁) |
-| 경매 마감 | GET | `/auction/end` | `auction_end` | `auction/end.html` | 예정 (카드가 `name`을 넘김, BE는 501 스텁) |
+| 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 예정 (BE 구현, 화면은 #31) |
+| 가격 제안 | POST | `/auction/bid` | `auction_bid` | (redirect) | BE 구현 |
+| 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE는 501 스텁, #40에서 구현) |
 
 예정 화면의 경로는 자리만 잡아 둔 것입니다. 상세 화면(구해요·경매)은 화면을 만들 때 위 규칙대로 경로 파라미터를 정해서 이 표를 고칩니다.
 
@@ -70,6 +71,21 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `product_reserve` `/product/reserve`
 - POST: `name`(상품명), `place`(장소 칩 순번), `slot`(시간 칩 순번)
 - 처리 후 `product_detail`로 redirect + flash
+
+### `auction_detail` `/auction/detail/<path:name>`
+- 경매 상품이 아니거나 없는 상품이면 404
+- 템플릿에 넘길 값
+  - `product`(dict): 상품. `price`는 지금 최고 제안가입니다
+  - `auction`(dict): `end_at`(마감 시각 ISO 문자열), `top_price`(최고 제안가, 없으면 0), `bid_count`(제안 수), `duration_days`, `closed`(마감 여부)
+  - `bids`(목록, 금액이 높은 순): `bidder`(앞 두 글자만 남긴 아이디. 예: `po***`), `price`, `date`(예: `11.20 14:30`)
+  - `my_bid`: 로그인한 사용자의 가장 높은 제안(`bids`의 항목과 같은 모양). 없으면 `None`
+  - `min_price`: 지금 제안할 수 있는 최소 금액 (`top_price` + 5,000)
+- 남은 시간은 목록 카드처럼 `auction.end_at`으로 화면에서 계산합니다
+
+### `auction_bid` `/auction/bid`
+- POST: `name`(상품명), `price`(제안 금액. 쉼표가 있어도 됩니다)
+- 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
+- 그 외에는 `auction_detail`로 redirect + flash. 실패한 경우(본인 상품, 마감 후, `min_price` 미만)는 flash 분류가 `error`입니다
 
 ### `review_list` `/review`
 - 쿼리: `seller` 판매자 ID(있으면 그 판매자가 받은 리뷰만, 판매자 바 표시), `page`
