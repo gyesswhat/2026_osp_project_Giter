@@ -67,6 +67,8 @@ h1, h2, h3 { text-wrap: balance; }
 /* 영수증 줄: <div class="row"><span>라벨</span><span class="leader"></span><span>값</span></div> */
 .row { display: flex; align-items: baseline; gap: .5rem; }
 .row > .leader { flex: 1; min-width: 1rem; border-bottom: 1px dotted var(--muted); transform: translateY(-.28em); }
+/* 줄바꿈 가능한 줄(경매 카드 가격 줄)은 점선이 0까지 줄어들고, 그래도 모자랄 때만 값이 다음 줄로 내려간다 */
+.row.flex-wrap > .leader { min-width: 0; }
 
 /* 점선 절취선 */
 .tear { border-top: 1px dashed var(--line); }

@@ -12,7 +12,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
   - 상품명에 `/`가 들어갈 수 있으므로 `<name>`이 아니라 `<path:name>`을 씁니다. (`<name>`이면 `아이패드 1/2` 같은 이름이 404가 납니다)
   - `url_for('product_detail', name=p.name)`처럼 이름만 넘기면 한글·공백은 Flask가 알아서 인코딩합니다.
 - 화면이 아닌 처리(약속 신청 등)는 상품명을 경로에 넣지 않고 **폼 값**으로 보냅니다.
-- `/product/new` `/product/reserve` `/review/done`처럼 고정 경로가 `/product/<path:name>` `/review/<path:name>`보다 먼저 잡히므로, 상품명 `new` `reserve` `done`은 등록할 수 없게 막습니다.
+- `/product/new` `/product/reserve` `/product/like` `/review/done`처럼 고정 경로가 `/product/<path:name>` `/review/<path:name>`보다 먼저 잡히므로, 상품명 `new` `reserve` `like` `done`은 등록할 수 없게 막습니다.
 - 로그인 여부는 `session['id']`로 판단합니다.
 
 ## 경로표
@@ -25,6 +25,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 상품 상세 | GET | `/product/<path:name>` | `product_detail` | `product/detail.html` | 화면 |
 | 상품 등록 | GET, POST | `/product/new` | `product_new` | `product/new.html` | 화면 |
 | 약속 신청 | POST | `/product/reserve` | `product_reserve` | (없음, 상세로 redirect) | 미리보기 |
+| 찜 토글 | POST | `/product/like` | `product_like` | (없음, 상세로 redirect) | 예정 (BE 구현 완료, 찜 버튼 폼 연결 필요) |
 | 리뷰 목록 | GET | `/review` | `review_list` | `review/list.html` | 화면 |
 | 리뷰 상세 | GET | `/review/<path:name>` | `review_detail` | `review/detail.html` | 화면 |
 | 리뷰 작성 | GET, POST | `/review/new` | `review_new` | `review/new.html` | 화면 |
@@ -38,8 +39,8 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 예정 |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
-| 경매 상세 | GET | `/auction/detail` | `auction_detail` | `auction/detail.html` | 예정 |
-| 경매 마감 | GET | `/auction/end` | `auction_end` | `auction/end.html` | 예정 |
+| 경매 상세 | GET | `/auction/detail` | `auction_detail` | `auction/detail.html` | 예정 (카드가 `name`을 넘김, BE는 501 스텁) |
+| 경매 마감 | GET | `/auction/end` | `auction_end` | `auction/end.html` | 예정 (카드가 `name`을 넘김, BE는 501 스텁) |
 
 예정 화면의 경로는 자리만 잡아 둔 것입니다. 상세 화면(구해요·경매)은 화면을 만들 때 위 규칙대로 경로 파라미터를 정해서 이 표를 고칩니다.
 
@@ -49,6 +50,12 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 쿼리: `q` 검색어, `sort` new·like·low·high, `sale_status` all·sale·hold, `kind` all·fixed·bid, `price_min`·`price_max` 원 단위(없으면 제한 없음), `page` 1부터
 - 템플릿에 넘길 값: `products`(현재 페이지 상품 dict 목록), `total`, `page`, `total_pages`
 - 거래 완료(`sale_status == 'done'`) 상품은 목록에서 뺍니다.
+- 경매 상품(`kind == 'bid'`)에는 카드가 쓰는 값을 함께 넣습니다 (schema.dbml `auctions`, 자세한 내용은 `components/_product_card.html` 주석)
+  - `price`: 지금 최고 제안가 `top_price` (제안이 없으면 0)
+  - `bid_count`: 제안 수
+  - `end_at`: 마감 시각 ISO 문자열. 예) `2026-11-25T14:30:00+09:00`. 남은 시간은 화면에서 계산합니다
+  - `closed`: 마감 여부 (요청 시점에 `end_at`과 비교)
+- 카드 링크: 고정가 → `product_detail(name)`, 진행 중인 경매 → `auction_detail(name)`, 마감된 경매 → `auction_end(name)`
 
 ### `product_detail` `/product/<path:name>`
 - 템플릿에 넘길 값: `product`(dict), `liked`(선택), `image`(선택)
@@ -63,19 +70,27 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
   - 방식에 맞지 않는 칸은 화면에서 disabled로 바꿔 보내지 않습니다
 - 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `상품을 등록했어요. N일 동안 제안을 받아요.`)
 - 실패: 같은 템플릿에 `form`(입력값), `errors`(필드별 메시지 dict)를 넘겨 다시 그림
-- 같은 상품명이 이미 있거나 `new` `reserve` `done`이면 `errors['name']`
+- 같은 상품명이 이미 있거나 `new` `reserve` `like` `done`이면 `errors['name']`
 - 방식·가격·기간 오류는 `errors['kind']`, `errors['price']`, `errors['duration']`
 
 ### `product_reserve` `/product/reserve`
 - POST: `name`(상품명), `place`(장소 칩 순번), `slot`(시간 칩 순번)
 - 처리 후 `product_detail`로 redirect + flash
 
+### `product_like` `/product/like`
+- POST: `name`(상품명)
+- 로그인 필요. 비로그인이면 flash 후 `auth_login`으로 redirect
+- 찜하지 않은 상품이면 찜을 추가하고, 이미 찜했으면 취소합니다. `products.likes`도 함께 1 늘리거나 줄입니다.
+- 없는 상품이면 404, 자기 상품이면 flash 후 `product_detail`로 redirect
+- 처리 후 `product_detail`로 redirect + flash (`찜했어요.` / `찜을 취소했어요.`)
+- 상품 상세의 찜 버튼은 `<form method="post" action="{{ url_for('product_like') }}">` 안에 `<input type="hidden" name="name" value="{{ p.name }}">`를 넣어 보냅니다.
+
 ### `review_list` `/review`
 - 쿼리: `seller` 판매자 ID(있으면 그 판매자가 받은 리뷰만, 판매자 바 표시), `page`
 - 상품 상세의 '판매자 리뷰 보기'가 `url_for('review_list', seller=p.seller)`로 들어옵니다.
 
 ### `review_detail` `/review/<path:name>`
-- `name`은 리뷰를 쓴 상품의 상품명입니다. (리뷰를 상품명 키로 저장한다는 전제, BE와 합의 필요)
+- `name`은 리뷰를 쓴 상품의 상품명입니다. (리뷰는 상품명 키로 저장합니다. 상품 하나에 리뷰 하나)
 
 ### `review_new` `/review/new`
 - GET 쿼리: `name` 리뷰를 쓸 상품명
@@ -85,7 +100,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 로그인 상태면 `reviewer`는 `session['id']`를 씁니다.
 
 ### `review_done` `/review/done`
-- 방금 등록한 리뷰 요약. 미리보기는 `session['last_review']`에서 꺼냅니다.
+- 방금 등록한 리뷰 요약. BE는 `session['last_review']`에 상품명을 저장하고, 그 상품명으로 DB에서 리뷰를 읽어 `review`로 넘깁니다.
 - BE에서 리뷰 상세가 실제 데이터를 보여 주게 되면 `review_detail`로 바로 보내도 됩니다.
 
 ### `auth_login` `/login`
@@ -95,6 +110,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `auth_signup` `/signup`
 - POST: `user_id, password, password_confirm, email, auth_code, phone`(선택)
 - 성공하면 `auth_login`으로 redirect
+- 실패: 같은 템플릿에 `form`(`user_id, email, phone`), `errors`(`user_id, password, password_confirm, email, general`)를 넘겨 400으로 다시 표시
 
 ### `auth_logout` `/logout`
 - `session`에서 `id`를 지우고 `product_list`로 redirect
@@ -130,7 +146,7 @@ BE 라우트를 아래처럼 바꾸면 FE 템플릿과 그대로 연결됩니다
 | 출발 | 링크 | 라우트 |
 | --- | --- | --- |
 | 헤더 | 로고, 상품·구해요·리뷰·채팅·마이 탭, 상품 등록, 로그인, 로그아웃 | `product_list` `wanted_list` `review_list` `chat_room` `my_index` `product_new` `auth_login` `auth_logout` |
-| 상품 목록 | 상품 카드, 필터 폼, 페이지 번호 | `product_detail(name)` `product_list` |
+| 상품 목록 | 상품 카드(고정가·경매·마감된 경매), 필터 폼, 페이지 번호 | `product_detail(name)` `auction_detail(name)` `auction_end(name)` `product_list` |
 | 상품 상세 | 판매자와 채팅, 판매자 리뷰 보기, 리뷰 쓰기(거래 완료), 약속 신청 폼 | `chat_room` `review_list(seller)` `review_new(name)` `product_reserve` |
 | 상품 등록 | 폼, 취소 | `product_new` `product_list` |
 | 리뷰 목록 | 리뷰 쓰기, 리뷰 카드 | `review_new` `review_detail(name)` |

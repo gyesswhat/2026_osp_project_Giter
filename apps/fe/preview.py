@@ -8,6 +8,7 @@ BE 연동 전에 base.html과 공통 컴포넌트, 각자 만든 화면을 확�
 """
 
 import math
+from datetime import datetime, timedelta
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from jinja2 import TemplateNotFound
@@ -43,8 +44,15 @@ SAMPLE_PRODUCTS = [
     {"name": "전기 주전자 1L", "price": 8000, "address": "이하우스", "likes": 7, "sale_status": "done"},
 ]
 
+
+def _ends_in(**delta):
+    """지금부터 delta 뒤의 마감 시각(ISO 문자열). 서버를 켤 때마다 남은 시간이 시안과 같게 보이도록 상대 시각으로 둔다."""
+    return (datetime.now().astimezone() + timedelta(**delta)).isoformat(timespec="seconds")
+
+
 # 상품 화면 미리보기용 더미 (시안 예시 데이터 기준). 목록 순서 = 최신순
 # kind: fixed(가격 정해진 물건) | bid(가격 제안 받는 중). bid의 price는 지금 최고 제안가
+# bid 상품: bid_count 제안 수, end_at 마감 시각(ISO), closed 마감 여부 (schema.dbml auctions)
 # status: 상품 상태(최상/상/중/하). sale_status: 판매 상태(sale/hold/done)
 PREVIEW_PRODUCTS = [
     {"name": "컴퓨터구조 및 설계 5판", "seller": "baekkot21", "price": "18000", "address": "ECC 앞", "status": "상",
@@ -55,7 +63,8 @@ PREVIEW_PRODUCTS = [
                 {"building": "기타", "detail": "이대역 2번 출구"}],
      "slots": ["10.12 (월) 13:00", "10.12 (월) 15:00", "10.13 (화) 12:00", "10.13 (화) 16:30", "10.14 (수) 11:00"]},
     {"name": "아이패드 에어 5세대 64GB", "seller": "apple_ewha", "price": 435000, "address": "포스코관", "status": "최상",
-     "likes": 31, "sale_status": "sale", "kind": "bid", "date": "2026.10.06"},
+     "likes": 31, "sale_status": "sale", "kind": "bid", "date": "2026.10.06",
+     "bid_count": 7, "end_at": _ends_in(days=2, hours=13, minutes=22), "closed": False},
     {"name": "이화 과잠 M 사이즈", "seller": "gwajam_22", "price": 25000, "address": "학생문화관", "status": "상",
      "likes": 18, "sale_status": "hold", "kind": "fixed", "date": "2026.10.05"},
     {"name": "로지텍 K380 무선 키보드", "seller": "ewhain_sw", "price": 22000, "address": "아산공학관", "status": "중",
@@ -71,11 +80,14 @@ PREVIEW_PRODUCTS = [
      "likes": 3, "sale_status": "sale", "kind": "fixed", "date": "2026.10.02",
      "description": "각도 조절되는 접이식 독서대입니다. 전공책 두 권까지 올라가요."},
     {"name": "필름 카메라 올림푸스 뮤2", "seller": "film_lover", "price": 120000, "address": "조형예술관", "status": "중",
-     "likes": 20, "sale_status": "sale", "kind": "bid", "date": "2026.10.01"},
+     "likes": 20, "sale_status": "sale", "kind": "bid", "date": "2026.10.01",
+     "bid_count": 12, "end_at": _ends_in(hours=26), "closed": False},
     {"name": "이케아 스탠드 조명", "seller": "hanwoori_210", "price": 0, "address": "한우리집", "status": "상",
-     "likes": 2, "sale_status": "sale", "kind": "bid", "date": "2026.09.30"},
+     "likes": 2, "sale_status": "sale", "kind": "bid", "date": "2026.09.30",
+     "bid_count": 0, "end_at": _ends_in(hours=5), "closed": False},
     {"name": "닌텐도 스위치 라이트", "seller": "ewhain_sw", "price": 165000, "address": "ECC", "status": "상",
-     "likes": 14, "sale_status": "sale", "kind": "bid", "date": "2026.09.29"},
+     "likes": 14, "sale_status": "sale", "kind": "bid", "date": "2026.09.29",
+     "bid_count": 6, "end_at": _ends_in(hours=-1), "closed": True},
     {"name": "공학수학 솔루션", "seller": "math_ewha", "price": 12000, "address": "아산공학관", "status": "중",
      "likes": 4, "sale_status": "sale", "kind": "fixed", "date": "2026.09.28"},
     {"name": "무선 마우스 M330", "seller": "cse24", "price": 15000, "address": "ECC", "status": "상",
