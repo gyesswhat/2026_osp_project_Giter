@@ -26,7 +26,7 @@ SCREENS = [
     ("/review/<path:name>", "review_detail", "review/detail.html"),
     ("/review/new", "review_new", "review/new.html"),
     ("/review/done", "review_done", "review/done.html"),
-    ("/auction/detail", "auction_detail", "auction/detail.html"),
+    ("/auction/detail/<path:name>", "auction_detail", "auction/detail.html"),
     ("/auction/end", "auction_end", "auction/end.html"),
     ("/chat", "chat_room", "chat/room.html"),
     ("/wanted", "wanted_list", "wanted/list.html"),
@@ -150,6 +150,41 @@ def product_detail(name):
     if product is None:
         abort(404)
     return render_template("product/detail.html", product=product, liked=False)
+
+
+def auction_detail(name):
+    """경매 상세 미리보기: 상품명으로 경매 상품을 조회"""
+    product = _find_product(name)
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    highest_bid = int(product["price"])
+    auction = {
+        "top_price": highest_bid,
+        "bid_count": 0,
+        "end_at": "2026-11-25T18:00:00",
+        "closed": False,
+    }
+
+    if highest_bid==0:
+        bids=[]
+    else:
+        bids = [
+            {"bidder": "ab***12", "date": "11.20 14:30", "price": highest_bid},
+            {"bidder": "ki***07", "date": "11.20 12:15", "price": highest_bid - 5000},
+            {"bidder": "ew***25", "date": "11.19 18:42", "price": highest_bid - 15000},
+        ]   
+    auction["bid_count"] = len(bids)
+
+    return render_template(
+        "auction/detail.html",
+        product=product,
+        auction=auction,
+        bids=bids,
+        my_bid=None,
+       min_price=highest_bid+5000,
+    )
 
 
 def product_reserve():
@@ -278,6 +313,7 @@ auth_signup.methods = ["GET", "POST"]
 CUSTOM_VIEWS = {
     "product_list": product_list,
     "product_detail": product_detail,
+    "auction_detail": auction_detail,
     "product_new": product_new,
     "review_new": review_new,
     "review_done": review_done,
@@ -305,6 +341,11 @@ for path, endpoint, template in SCREENS:
 
 app.add_url_rule("/product/reserve", "product_reserve", product_reserve, methods=["POST"])
 
+@app.route("/auction/bid", methods=["POST"])
+def auction_bid():
+    name = request.form.get("name", "")
+    flash("미리보기에서는 실제 제안이 저장되지 않습니다.")
+    return redirect(url_for("auction_detail", name=name))
 
 @app.route("/logout")
 def auth_logout():

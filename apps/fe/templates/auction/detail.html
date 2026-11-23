@@ -1,0 +1,174 @@
+{#
+  경매 상세 화면 (GitHub Issue #31)
+  라우트 함수: auction_detail
+
+  구현할 내용
+  - 현재 최고 제안가와 남은 시간
+  - 제안자 ID를 마스킹한 제안 목록
+  - 최고 제안가 + 5,000원 이상 입력 안내
+
+  실제 입찰 처리 및 BE 연동은 추후 진행
+#}
+{% extends "base.html" %}
+{% from "components/_product_card.html" import won %}
+{% set active_tab = 'product' %}
+
+{% block title %}경매 상세 | BoughtIT{% endblock %}
+
+{% block content %}
+
+  <div class="grid gap-8 md:grid-cols-2 md:gap-12">
+
+    {# 상품 이미지 #}
+    <div class="ph relative aspect-square max-w-full rounded text-[120px]">
+      <span class="center" aria-hidden="true">📱</span>
+    </div>
+
+    {# 상품 정보 #}
+    <div class="min-w-0">
+      <span class="tag-bid">가격 제안 받는 중</span>
+
+      <h1 class="page-title mt-3">{{ product.name }}</h1>
+
+      {# 최고 제안가 및 남은 시간 #}
+      <div class="slip mt-5 p-4">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="text-sm text-muted">지금 가장 높은 제안</p>
+            <p class="num text-[34px] leading-none text-brandink">
+              {{ won(auction.top_price) }}
+            </p>
+          </div>
+
+          <div class="text-right">
+            <p class="text-sm text-muted">마감 까지</p>
+            <p id="remainingTime" class="num text-[22px] leading-none text-stamp" data-end-at="{{ auction.end_at }}">
+              계산 중...
+            </p>          
+          </div>
+        </div>
+
+        <p class="mt-3 text-sm text-muted">
+          제안 <span class="num text-ink">{{ auction.bid_count }}</span>건
+          · 마감 <span class="font-mono">{{  auction.end_at | replace('T', ' ') | truncate(16, True, '') }}</span>
+        </p>
+      </div>
+      {# 판매자 및 상품 정보 #}
+      <dl class="mt-5 space-y-2 border-y border-dashed border-line py-4 text-[15px]">
+        <div class="row">
+          <dt class="text-muted">판매자</dt>
+          <span class="leader"></span>
+          <dd class="font-semibold">{{ product.seller }}</dd>
+        </div>
+
+        <div class="row">
+          <dt class="text-muted">거래 장소</dt>
+          <span class="leader"></span>
+          <dd>{{ product.address }}</dd>
+        </div>
+
+        <div class="row">
+          <dt class="text-muted">등록일</dt>
+          <span class="leader"></span>
+          <dd class="font-mono">{{ product.date }}</dd>
+        </div>
+      </dl>
+
+      {# 상품 설명 #}
+      <p class="mt-5 max-w-prose whitespace-pre-line break-keep">
+        {{ product.description }}
+      </p>
+      {# 제안 금액 입력 폼 #}
+      {% if not auction.closed %}
+      <form id="bidForm" class="panel mt-6 p-4" action="{{ url_for('auction_bid') }}" method="post" data-highest-bid="{{ auction.top_price }}">
+        <input type="hidden" name="name" value="{{ product.name }}">
+        <label class="label" for="bidInput">내 제안 금액</label>
+
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="relative min-w-0 flex-1">
+            <input
+              id="bidInput"
+              name="price"
+              type="text"
+              class="field pr-10 font-mono"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="{{ '{:,}'.format(min_price) }}원 이상"
+              aria-describedby="bidMsg"
+            >
+            <span class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted">
+              원
+            </span>
+          </div>
+
+          <button type="submit" class="btn-primary">제안하기</button>
+        </div>
+
+        {# 빠른 금액 선택 버튼 #}
+        <div id="bidQuick" class="mt-3 flex flex-wrap gap-2">
+          <button type="button" class="btn-outline" data-plus="5000">
+            최고가 +5,000
+          </button>
+          <button type="button" class="btn-outline" data-plus="10000">
+            최고가 +10,000
+          </button>
+          <button type="button" class="btn-outline" data-plus="30000">
+            최고가 +30,000
+          </button>
+        </div>
+
+        <p id="bidMsg" class="mt-2 text-sm text-muted">
+          지금 최고가보다 5,000원 이상 높게 제안할 수 있어요.
+        </p>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+
+  <section class="panel mt-10 p-5 sm:p-7">
+    <h2 class="text-xl font-extrabold tracking-tight">제안 내역</h2>
+
+    <p class="mt-1 text-sm text-muted">
+      아이디는 가려서 보여 줘요.
+      마감 후 판매자에게만 최고 제안자가 공개돼요.
+    </p>
+
+    <ol id="bidList" class="mt-4 divide-y divide-dashed divide-line">
+      {% for bid in bids %}
+        <li class="flex flex-wrap items-center gap-3 py-3">
+          <span class="w-6 num text-sm text-muted">
+            {{ loop.index }}
+          </span>
+
+          <span class="font-medium">
+            {{ bid.bidder }}
+          </span>
+
+          <span class="font-mono text-xs text-muted">
+            {{ bid.date }}
+          </span>
+
+          
+          <span class="leader"></span>
+
+          <span class="num {% if loop.first %}text-brandink{% endif %}">
+            {{ won(bid.price) }}
+          </span>
+
+          {% if loop.first %}
+            <span class="tag-bid">최고</span>
+          {% endif %}
+        </li>
+      {% else %}
+        <li class="py-6 text-center text-gray-500">
+          아직 제안 내역이 없습니다.
+        </li>
+      {% endfor %}
+    </ol>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/auction_detail.js') }}"></script>
+{% endblock %}
