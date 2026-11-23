@@ -1,5 +1,38 @@
 
 document.addEventListener("DOMContentLoaded", () => {
+        // 경매 마감까지 남은 시간 계산
+    const remainingTime = document.getElementById("remainingTime");
+
+    if (remainingTime) {
+        const endAt = new Date(remainingTime.dataset.endAt);
+
+        function updateRemainingTime() {
+            const diff = Math.max(0, endAt.getTime() - Date.now());
+
+            if (!Number.isFinite(diff)) {
+                remainingTime.textContent = "마감 시간 확인 불가";
+                return;
+            }
+
+            if (diff === 0) {
+                remainingTime.textContent = "마감";
+                return;
+            }
+
+            const days = Math.floor(diff / 86400000);
+            const hours = Math.floor((diff % 86400000) / 3600000);
+            const minutes = Math.floor((diff % 3600000) / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+
+            const pad = (n) => String(n).padStart(2, "0");
+
+            remainingTime.textContent =
+                `${days}일 ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+        }
+
+        updateRemainingTime();
+        setInterval(updateRemainingTime, 1000);
+    }
     const form = document.getElementById("bidForm");
     const input = document.getElementById("bidInput");
     const message = document.getElementById("bidMsg");
@@ -40,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        message.textContent =
-            `${amount.toLocaleString("ko-KR")}원 제안 금액이 확인되었습니다. (미리보기에서는 저장되지 않습니다.)`;
+        input.value = String(amount);
+        form.submit();
     });
 });
