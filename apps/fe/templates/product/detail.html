@@ -20,6 +20,11 @@
   - image: 이미지 주소를 직접 줄 때 (시안용 더미 등). 주면 img_path보다 우선 (선택)
   - liked: 로그인한 사용자가 찜했는지 (선택)
 
+  찜 버튼은 POST url_for('product_like')로 name(상품명)을 보낸다. BE가 찜을 토글하고 이 화면으로 redirect한다.
+  리뷰 쓰기 버튼은 판매 상태와 상관없이 판매자가 아닌 사람에게 보인다. (필수 데모: B가 A의 상품에 리뷰 작성)
+  로그인하지 않았으면 BE(product_like, review_new)가 로그인 화면으로 보낸다.
+  판매자 본인에게는 찜·리뷰 쓰기 버튼을 숨긴다. (BE도 본인 상품의 찜·리뷰를 막는다)
+
   약속 신청 폼은 POST url_for('product_reserve')로 name(상품명), place(장소 칩 값 = places 순번),
   slot(시간 칩 값 = slots 순번)을 보낸다. 처리 후에는 이 화면으로 redirect하고 flash로 결과를 알린다. (ROUTES.md)
   장소·시간 칩은 common.js의 칩 그룹 동작(data-chip-group)을 그대로 쓴다. 굵은 건물명을 넣으려고 매크로 대신 직접 그렸다.
@@ -30,6 +35,7 @@
 {% set active_tab = 'product' %}
 
 {% set p = product %}
+{% set mine = session.get('id') and session.get('id') == p.seller %}
 {% set sale = p.sale_status or 'sale' %}
 {% set src = image or (url_for('static', filename='uploads/' ~ p.img_path) if p.img_path else none) %}
 {% set places = p.places or ([{'building': p.address, 'detail': ''}] if p.address else []) %}
@@ -77,7 +83,7 @@
         {% endif %}
         {% if p.likes is defined %}
           <div class="row"><dt class="text-muted">찜</dt><span class="leader"></span>
-            <dd class="font-mono" data-like-count>{{ p.likes }}</dd></div>
+            <dd class="font-mono">{{ p.likes }}</dd></div>
         {% endif %}
       </dl>
 
@@ -89,11 +95,17 @@
 
       <div class="mt-6 flex flex-wrap gap-2">
         {{ button('판매자와 채팅', href=url_for('chat_room')) }}
-        <button type="button" class="btn-outline" aria-pressed="{{ 'true' if liked else 'false' }}" data-like-button>
-          {{- '♥ 찜한 물건' if liked else '♡ 찜하기' -}}
-        </button>
+        {% if not mine %}
+          {# display: contents로 폼 상자를 없애 버튼이 같은 줄에 나란히 놓이게 한다 #}
+          <form method="post" action="{{ url_for('product_like') }}" class="contents">
+            <input type="hidden" name="name" value="{{ p.name }}">
+            <button type="submit" class="btn-outline" aria-pressed="{{ 'true' if liked else 'false' }}">
+              {{- '♥ 찜한 물건' if liked else '♡ 찜하기' -}}
+            </button>
+          </form>
+        {% endif %}
         {{ button('판매자 리뷰 보기', variant='quiet', href=url_for('review_list', seller=p.seller)) }}
-        {% if sale == 'done' %}{{ button('리뷰 쓰기', variant='outline', href=url_for('review_new', name=p.name)) }}{% endif %}
+        {% if not mine %}{{ button('리뷰 쓰기', variant='outline', href=url_for('review_new', name=p.name)) }}{% endif %}
       </div>
     </div>
   </div>

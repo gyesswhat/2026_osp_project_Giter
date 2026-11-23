@@ -71,19 +71,7 @@
   render();
 })();
 
-// ---------- 상품 상세: 찜 버튼 ----------
-// 지금은 화면에서만 바뀐다. BE 연동 시 여기서 찜 API를 부르면 된다.
-(() => {
-  const btn = document.querySelector('[data-like-button]');
-  if (!btn) return;
-  const count = document.querySelector('[data-like-count]');
-  btn.addEventListener('click', () => {
-    const on = btn.getAttribute('aria-pressed') !== 'true';
-    btn.setAttribute('aria-pressed', String(on));
-    btn.textContent = on ? '♥ 찜한 물건' : '♡ 찜하기';
-    if (count) count.textContent = Math.max(0, +count.textContent + (on ? 1 : -1));
-  });
-})();
+// 상품 상세의 찜 버튼은 POST /product/like 폼으로 보낸다 (product/detail.html). 따로 JS가 없다.
 
 // ---------- 상품 상세: 약속 잡기 ----------
 // 장소와 시간 칩을 하나씩 고르면 신청 버튼이 켜진다.

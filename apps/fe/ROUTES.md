@@ -25,7 +25,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 상품 상세 | GET | `/product/<path:name>` | `product_detail` | `product/detail.html` | 화면 |
 | 상품 등록 | GET, POST | `/product/new` | `product_new` | `product/new.html` | 화면 |
 | 약속 신청 | POST | `/product/reserve` | `product_reserve` | (없음, 상세로 redirect) | 미리보기 |
-| 찜 토글 | POST | `/product/like` | `product_like` | (없음, 상세로 redirect) | 예정 (BE 구현 완료, 찜 버튼 폼 연결 필요) |
+| 찜 토글 | POST | `/product/like` | `product_like` | (없음, 상세로 redirect) | 화면 (상품 상세 찜 버튼 폼 연결, #28) |
 | 리뷰 목록 | GET | `/review` | `review_list` | `review/list.html` | 화면 |
 | 리뷰 상세 | GET | `/review/<path:name>` | `review_detail` | `review/detail.html` | 화면 |
 | 리뷰 작성 | GET, POST | `/review/new` | `review_new` | `review/new.html` | 화면 |
@@ -61,6 +61,10 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 템플릿에 넘길 값: `product`(dict), `liked`(선택), `image`(선택)
 - 상품이 없으면 404
 - `product`의 필드는 `product/detail.html` 맨 위 주석 참고 (`name, seller, price, address, status, description, img_path, sale_status, kind, date, likes, places, slots`)
+- 찜 버튼: `product_like`로 POST (`name`). `liked`가 참이면 `♥ 찜한 물건`, 아니면 `♡ 찜하기`로 보입니다
+- 리뷰 쓰기 버튼: 판매 상태와 상관없이 판매자가 아닌 사람에게 보입니다 (`url_for('review_new', name=p.name)`). 필수 데모(B가 A의 상품에 리뷰 작성)를 위해 거래 완료 조건을 뺐습니다 (#28)
+- 판매자 본인(`session['id'] == product.seller`)에게는 찜·리뷰 쓰기 버튼을 숨깁니다. BE도 본인 상품의 찜·리뷰를 막습니다
+- 로그인하지 않았으면 찜·리뷰 쓰기를 누를 때 BE가 `auth_login`으로 보냅니다
 
 ### `product_new` `/product/new`
 - POST `multipart/form-data`: `seller, name, kind, price, duration, address, status, description, picture`
@@ -115,31 +119,25 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `auth_logout` `/logout`
 - `session`에서 `id`를 지우고 `product_list`로 redirect
 
-## 현재 BE(`app.py`)와의 대응
+## FE와 BE 필드 이름 대응 (#24, #28)
 
-BE 라우트를 아래처럼 바꾸면 FE 템플릿과 그대로 연결됩니다.
+BE(`apps/be`)는 이 문서의 라우트 함수 이름과 경로를 그대로 쓰므로, 예전 실습용 루트 `app.py`와의 라우트 대응표는 지웠습니다.
+예전에 이름이 달랐던 필드는 아래처럼 정리됐습니다.
 
-| 지금 BE 라우트 | 지금 경로 | → FE 라우트 | 경로 |
+| 화면 | FE 필드 | BE | 상태 |
 | --- | --- | --- | --- |
-| `index` + `item_list` | `/`, `/list` | `product_list` | `/` |
-| `view_item_detail` | `/view_detail/<name>/` | `product_detail` | `/product/<path:name>` |
-| `reg_items` + `submit_item` | `/reg_items`, `/submit_item` (POST) | `product_new` | `/product/new` (GET, POST) |
-| `review_list` | `/review` | `review_list` | `/review` |
-| `reg_reviews` | `/reg_reviews` | `review_new` | `/review/new` (GET, POST) |
-| `login` + `login_user` | `/login`, `/login_confirm` (POST) | `auth_login` | `/login` (GET, POST) |
-| `signup` + `register_user` | `/signup`, `/signup_post` (POST) | `auth_signup` | `/signup` (GET, POST) |
-| `logout_user` | `/logout` | `auth_logout` | `/logout` |
-
-필드 이름이 서로 다른 곳 (BE 연동 때 한쪽으로 맞춰야 함)
-
-| 화면 | FE 필드 | 지금 BE 필드 |
-| --- | --- | --- |
-| 로그인·회원가입 | `user_id`, `password` | `id`, `pw` |
-| 회원가입 | (없음) | `nickname` 필수 |
-| 회원가입 | `email`, `phone`, `auth_code` | (저장 안 함) |
-| 상품 등록 | `description` | (저장 안 함) |
-| 상품 등록 | (없음) | `email` |
-| 상품 | `sale_status`, `kind` | (없음) |
+| 로그인·회원가입 | `user_id`, `password` | 같은 이름으로 받음 (예전 `id`, `pw`) | 맞춤 |
+| 회원가입 | `nickname` 없음 | `nickname`을 받지 않음 | 맞춤 |
+| 회원가입 | `email`, `phone` | 저장함 | 맞춤 |
+| 회원가입 | `auth_code` | 아직 확인하지 않음 (BE TODO) | BE 작업 남음 |
+| 상품 등록 | `description` | 저장함 | 맞춤 |
+| 상품 등록 | `email` 없음 | `email`을 받지 않음 | 맞춤 |
+| 상품 등록 | `seller` | 받지 않고 `session['id']`를 씀. 로그인해야 등록 화면에 들어갈 수 있어 FE 칸은 읽기 전용으로 보임 | 맞춤 |
+| 상품 | `sale_status`, `kind` | 저장함 | 맞춤 |
+| 상품 상세 | 찜 버튼 | `product_like` (POST `name`) | 맞춤 (#28) |
+| 상품 상세 | 리뷰 쓰기 버튼 조건 | BE는 거래 완료를 확인하지 않고 본인 상품·중복 리뷰만 막음 | 맞춤 (#28) |
+| 리뷰 작성 | `product_name, rating, title, content, photo` | 같은 이름으로 받음. `reviewer`는 보내도 BE가 `session['id']`를 씀 | 맞춤 |
+| 리뷰 등록 완료 | `review`의 `reviewer, product_name, rating, title, content, photo` | 같은 이름으로 저장함 | 맞춤 |
 
 ## 링크 연결 현황
 
@@ -147,7 +145,7 @@ BE 라우트를 아래처럼 바꾸면 FE 템플릿과 그대로 연결됩니다
 | --- | --- | --- |
 | 헤더 | 로고, 상품·구해요·리뷰·채팅·마이 탭, 상품 등록, 로그인, 로그아웃 | `product_list` `wanted_list` `review_list` `chat_room` `my_index` `product_new` `auth_login` `auth_logout` |
 | 상품 목록 | 상품 카드(고정가·경매·마감된 경매), 필터 폼, 페이지 번호 | `product_detail(name)` `auction_detail(name)` `auction_end(name)` `product_list` |
-| 상품 상세 | 판매자와 채팅, 판매자 리뷰 보기, 리뷰 쓰기(거래 완료), 약속 신청 폼 | `chat_room` `review_list(seller)` `review_new(name)` `product_reserve` |
+| 상품 상세 | 판매자와 채팅, 찜(폼), 판매자 리뷰 보기, 리뷰 쓰기(판매자 본인 제외), 약속 신청 폼 | `chat_room` `product_like` `review_list(seller)` `review_new(name)` `product_reserve` |
 | 상품 등록 | 폼, 취소 | `product_new` `product_list` |
 | 리뷰 목록 | 리뷰 쓰기, 리뷰 카드 | `review_new` `review_detail(name)` |
 | 리뷰 상세 | 리뷰 목록으로 | `review_list` |
