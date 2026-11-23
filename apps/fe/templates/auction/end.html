@@ -24,7 +24,7 @@
   <!-- 경매 마감 결과 카드 -->
   <section class="panel px-6 py-7 sm:px-8 sm:py-8">
 
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <p class="text-sm text-muted">가장 높은 제안</p>
 
@@ -40,7 +40,8 @@
         {% endif %}
       </div>
 
-      <span id="auctionStamp" class="stamp solid mt-2">
+      <span id="auctionStamp" class="stamp solid mt-2 self-end sm:self-auto">
+
         마감
       </span>
     </div>
