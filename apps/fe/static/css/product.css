@@ -37,3 +37,8 @@
 /* 숨긴 파일 칸에 키보드 초점이 오면 끌어다 놓는 상자에 테두리를 그린다 */
 [data-photo-input]:focus-visible + .photo-drop { outline: 2px solid var(--brand-ink); outline-offset: 2px; }
 .photo-drop.is-over { border-color: var(--brand); background: var(--tint); }
+
+/* ---------- 상품 등록: 가격 정하는 방식 카드 ---------- */
+/* radio를 숨기고 감싼 label을 카드로 꾸민다. 고른 카드는 실선 테두리와 옅은 바탕 */
+.mode-card:has(input:checked) { border-style: solid; border-color: var(--brand); background: var(--tint); }
+.mode-card:has(input:focus-visible) { outline: 2px solid var(--brand-ink); outline-offset: 2px; }

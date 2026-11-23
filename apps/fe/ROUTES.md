@@ -63,10 +63,15 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - `product`의 필드는 `product/detail.html` 맨 위 주석 참고 (`name, seller, price, address, status, description, img_path, sale_status, kind, date, likes, places, slots`)
 
 ### `product_new` `/product/new`
-- POST `multipart/form-data`: `seller, name, price, address, status, description, picture`
-- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.`
+- POST `multipart/form-data`: `seller, name, kind, price, duration, address, status, description, picture`
+  - `kind`: 가격 정하는 방식. `fixed`(가격 정해서 올리기, 기본값) | `bid`(가격 제안 받기)
+  - `price`: `kind=fixed`일 때만 보냅니다. 숫자만 (쉼표 없음)
+  - `duration`: 제안 받는 기간(일) `1` `3` `5` `7`. `kind=bid`일 때만 보냅니다 (schema.dbml `auctions.duration_days`)
+  - 방식에 맞지 않는 칸은 화면에서 disabled로 바꿔 보내지 않습니다
+- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `상품을 등록했어요. N일 동안 제안을 받아요.`)
 - 실패: 같은 템플릿에 `form`(입력값), `errors`(필드별 메시지 dict)를 넘겨 다시 그림
 - 같은 상품명이 이미 있거나 `new` `reserve` `like` `done`이면 `errors['name']`
+- 방식·가격·기간 오류는 `errors['kind']`, `errors['price']`, `errors['duration']`
 
 ### `product_reserve` `/product/reserve`
 - POST: `name`(상품명), `place`(장소 칩 순번), `slot`(시간 칩 순번)
