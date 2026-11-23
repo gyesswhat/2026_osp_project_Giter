@@ -72,11 +72,26 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 처리 후 `product_detail`로 redirect + flash
 
 ### `review_list` `/review`
-- 쿼리: `seller` 판매자 ID(있으면 그 판매자가 받은 리뷰만, 판매자 바 표시), `page`
+- 쿼리: `seller` 판매자 ID(있으면 그 판매자가 받은 리뷰만, 판매자 바 표시), `page` 페이지 번호
 - 상품 상세의 '판매자 리뷰 보기'가 `url_for('review_list', seller=p.seller)`로 들어옵니다.
+- BE PR #60에서 전달하는 값:
+  - `reviews`: 현재 페이지의 리뷰 목록 (페이지당 최대 10개)
+  - `total`: 전체 검색 결과의 리뷰 수
+  - `page`: 현재 페이지 번호
+  - `total_pages`: 전체 페이지 수
+  - `seller`: 선택된 판매자 ID
+  - `seller_info`: 판매자 필터 적용 시 `id`, `avg_rating`, `count` 포함
+- FE는 `reviews`를 반복하여 카드를 표시하고, `review_detail`로 연결합니다.
+- 리뷰가 없으면 빈 화면 안내를 표시하고, `page`와 `total_pages`로 페이지네이션을 구성합니다.
 
-### `review_detail` `/review/<path:name>`
-- `name`은 리뷰를 쓴 상품의 상품명입니다. (리뷰를 상품명 키로 저장한다는 전제, BE와 합의 필요)
+## `review_detail` `/review/<path:name>`
+- 경로 변수: `name` (리뷰를 작성한 상품명)
+- BE PR #60에서 전달하는 값:
+  - `review`: `product_name`, `reviewer`, `seller`, `rating`, `title`, `content`, `photo`, `created_at`, `date`
+  - `product`: 해당 리뷰와 연결된 상품 정보
+- FE는 `review`를 사용해 별점, 제목, 작성자, 날짜, 본문을 표시합니다.
+- `product`를 사용해 거래 상품 정보를 표시합니다.
+- 해당 상품의 리뷰가 없으면 BE에서 404를 반환합니다.
 
 ### `review_new` `/review/new`
 - GET 쿼리: `name` 리뷰를 쓸 상품명

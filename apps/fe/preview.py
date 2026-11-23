@@ -143,6 +143,28 @@ def product_list():
 def _find_product(name):
     return next((p for p in PREVIEW_PRODUCTS if p["name"] == name), None)
 
+def review_detail(name):
+    """리뷰 상세 화면 미리보기용 더미 데이터"""
+    review = {
+        "product_name": name,
+        "reviewer": "ewhain_sw",
+        "seller": "baekkot21",
+        "rating": 5,
+        "title": "책 상태가 설명 그대로였어요",
+        "content": "필기가 조금 있다고 하셨는데 정말 연필로 몇 군데만 있어서 지우고 바로 쓸 수 있었어요.",
+        "photo": "",
+        "created_at": "2026-10-05",
+        "date": "2026.10.05",
+    }
+
+    product = _find_product(name)
+
+    return render_template(
+        "review/detail.html",
+        review=review,
+        product=product,
+    )
+
 
 def product_detail(name):
     """상품 상세 미리보기. /product/<상품명> 으로 찾고, 없으면 404"""
@@ -250,6 +272,66 @@ def review_done():
     """리뷰 등록 완료 미리보기. 방금 제출한 값을 세션에서 꺼내 보여 준다"""
     return render_template("review/done.html", review=session.get("last_review"))
 
+def review_list():
+    """리뷰 목록 미리보기용 더미 데이터"""
+    reviews = [
+        {
+            "product_name": "컴퓨터구조 및 설계 5판",
+            "reviewer": "ewhain_sw",
+            "seller": "baekkot21",
+            "rating": 5,
+            "title": "책 상태가 설명 그대로였어요",
+            "date": "2026.10.05",
+            "photo": "",
+        },
+        {
+            "product_name": "로지텍 K380 무선 키보드",
+            "reviewer": "pear_blossom",
+            "seller": "ewhain_sw",
+            "rating": 5,
+            "title": "약속 시간을 잘 맞춰 주셨어요",
+            "date": "2026.10.04",
+            "photo": "",
+        },
+        {
+            "product_name": "기숙사용 미니 냉장고",
+            "reviewer": "hanwoori302",
+            "seller": "hanwoori_210",
+            "rating": 4,
+            "title": "냉장고 소음이 거의 없어요",
+            "date": "2026.10.02",
+            "photo": "",
+        },
+    ]
+
+    seller = request.args.get("seller", "")
+    if seller:
+        reviews = [r for r in reviews if r["seller"] == seller]
+
+    total = len(reviews)
+    page = max(1, int(request.args.get("page", 1)))
+    total_pages = max(1, (total + 9) // 10)
+    page = min(page, total_pages)
+
+    seller_info = None
+    if seller:
+        avg = round(sum(r["rating"] for r in reviews) / total, 1) if total else 0
+        seller_info = {
+            "id": seller,
+            "avg_rating": avg,
+            "count": total,
+        }
+
+    return render_template(
+        "review/list.html",
+        reviews=reviews[(page - 1) * 10:page * 10],
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        seller=seller,
+        seller_info=seller_info,
+    )
+
 
 def auth_login():
     """로그인 미리보기. 비밀번호는 확인하지 않고, ID만 있으면 로그인 처리 후 상품 목록으로 간다"""
@@ -281,6 +363,8 @@ CUSTOM_VIEWS = {
     "product_new": product_new,
     "review_new": review_new,
     "review_done": review_done,
+    "review_list": review_list,
+    "review_detail": review_detail,
     "auth_login": auth_login,
     "auth_signup": auth_signup,
 }
