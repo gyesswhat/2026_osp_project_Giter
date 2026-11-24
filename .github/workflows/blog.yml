@@ -1,0 +1,45 @@
+# 기술 블로그(blog/)를 GitHub Pages로 배포한다.
+# main에 blog/ 변경이 들어오면 Jekyll로 빌드해서 https://gyesswhat.github.io/2026_osp_project_Giter/ 에 올린다.
+# 처음 한 번: 저장소 Settings → Pages → Build and deployment → Source를 "GitHub Actions"로 바꿔야 한다.
+name: blog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "blog/**"
+      - ".github/workflows/blog.yml"
+  workflow_dispatch: # Actions 탭에서 손으로 다시 배포할 때
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포가 겹치면 앞의 배포를 끝까지 마친 뒤 다음 배포를 한다
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Jekyll로 blog/ 빌드
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./blog
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
