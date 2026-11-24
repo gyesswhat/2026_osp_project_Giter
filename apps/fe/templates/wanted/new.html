@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button, chip_group, input, textarea %}
+{% set active_tab = 'wanted' %}
+
+{% block title %}구해요 글쓰기 | BoughtIT{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/wanted.css') }}">{% endblock %}
+
+{% block content %}
+  {% set f = form if form is defined else {} %}
+  {% set err = errors if errors is defined else {} %}
+
+  {% set category_options = [
+    ('book', '도서'),
+    ('digital', '전자기기'),
+    ('dorm', '생활용품'),
+    ('etc', '기타')
+  ] %}
+  {% set condition_options = [
+    ('like_new', '거의 새것만'),
+    ('light_use', '사용감 조금'),
+    ('any', '상태 상관없음')
+  ] %}
+  {% set place_options = [
+    ('ECC', 'ECC'),
+    ('학생문화관', '학생문화관'),
+    ('아산공학관', '아산공학관'),
+    ('중앙도서관', '중앙도서관'),
+    ('기숙사', '기숙사')
+  ] %}
+
+  <div class="mx-auto max-w-2xl">
+    <h1 class="page-title">구해요 글쓰기</h1>
+    <p class="mt-1 text-muted">예산은 최대 금액이에요. 벗들은 이보다 낮거나 같은 금액으로만 제안할 수 있어요.</p>
+
+    <form id="wantedNewForm" method="post" action="{{ url_for('wanted_new') }}" enctype="multipart/form-data" class="panel mt-8 space-y-6 p-5 sm:p-8" novalidate>
+      <div>
+        <label class="label" for="picture">참고 사진 <span class="font-normal text-muted">(선택)</span></label>
+        <input id="picture" name="picture" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" class="sr-only" aria-describedby="picture-msg">
+
+        <div id="picDropzone" role="button" tabindex="0"
+             class="flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded border-2 border-dashed border-line bg-bg px-4 py-10 text-center transition-colors hover:border-brandink focus-visible:border-brandink">
+          <span class="font-semibold text-brandink">이미지 올리기</span>
+          <span class="text-sm text-muted">눌러서 고르거나 여기에 끌어다 놓으세요 (JPG, PNG, 5MB 이하)</span>
+        </div>
+
+        <div id="picPreviewBox" class="rounded border border-dashed border-line bg-bg p-4" hidden>
+          <div class="flex flex-wrap items-center gap-4">
+            <img id="picPreviewImg" src="" alt="선택한 참고 사진 미리보기" class="h-24 w-24 shrink-0 rounded-sm border border-line object-cover">
+            <div class="min-w-0 flex-1">
+              <p id="picFileName" class="truncate text-sm font-semibold"></p>
+              <p id="picFileSize" class="mt-0.5 font-mono text-xs text-muted"></p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                {{ button('다른 사진', variant='outline', class='py-1.5 text-xs', attrs={'id': 'picChangeBtn'}) }}
+                {{ button('지우기', variant='quiet', class='py-1.5 text-xs', attrs={'id': 'picClearBtn'}) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% if err.get('picture') %}
+          <p id="picture-msg" class="error" role="alert">{{ err.get('picture') }}</p>
+        {% else %}
+          <p id="picture-msg" class="error" hidden></p>
+        {% endif %}
+      </div>
+
+      {{ chip_group(
+        'category',
+        category_options,
+        selected=f.get('category', 'book'),
+        label='분류',
+        required=true,
+        error=err.get('category')
+      ) }}
+
+      {{ input(
+        'name',
+        '찾는 물건',
+        value=f.get('name', ''),
+        placeholder='예: 운영체제 10판',
+        required=true,
+        error=err.get('name')
+      ) }}
+
+      {{ input(
+        'budget',
+        '예산',
+        value=f.get('budget', ''),
+        placeholder='0',
+        suffix='원까지',
+        required=true,
+        error=err.get('budget'),
+        class='max-w-xs',
+        attrs={'inputmode': 'numeric', 'autocomplete': 'off'}
+      ) }}
+
+      {{ chip_group(
+        'condition',
+        condition_options,
+        selected=f.get('condition', 'light_use'),
+        label='괜찮은 상태',
+        required=true,
+        error=err.get('condition')
+      ) }}
+
+      {{ input(
+        'due_date',
+        '필요한 날',
+        type='date',
+        value=f.get('due_date', ''),
+        required=true,
+        error=err.get('due_date'),
+        class='max-w-xs'
+      ) }}
+
+      {{ chip_group(
+        'places',
+        place_options,
+        selected=f.get('places', ['ECC', '아산공학관']),
+        label='거래 장소',
+        multiple=true,
+        error=err.get('places')
+      ) }}
+
+      {{ textarea(
+        'description',
+        '설명',
+        value=f.get('description', ''),
+        rows=4,
+        placeholder='언제까지 필요한지, 꼭 확인하고 싶은 점을 적어 주세요.',
+        error=err.get('description')
+      ) }}
+
+      <div class="tear flex flex-wrap items-center justify-end gap-2 pt-6">
+        <p id="wantedFormMsg" class="mr-auto text-sm font-semibold text-brandink" role="status" hidden></p>
+        {{ button('취소', variant='quiet', href=url_for('wanted_list')) }}
+        {{ button('올리기', variant='primary', type='submit', attrs={'id': 'wantedSubmitBtn'}) }}
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/wanted.js') }}"></script>
+{% endblock %}
