@@ -1,0 +1,42 @@
+---
+layout: default
+title: 글 목록
+---
+{% assign posts = site.posts | sort: "order" %}
+<section class="hero">
+  <p class="eyebrow">2026 Open Software Platform · Team Giter</p>
+  <h1>BoughtIT 기술 블로그</h1>
+  <p class="lead">
+    BoughtIT(벗잇)은 이화인끼리 중고 물건을 사고파는 웹 서비스입니다.
+    Flask와 Jinja2로 화면을 만들고 Firebase Realtime Database에 데이터를 저장합니다.
+    이 블로그에는 서비스를 만들면서 새로 배운 개념, 직접 겪은 버그, 실행 방법, 대표 기능의 동작 원리를 정리했습니다.
+  </p>
+</section>
+
+<section aria-labelledby="posts-title">
+  <h2 id="posts-title" class="section-title">글 {{ posts.size }}편</h2>
+  <ol class="post-list">
+    {% for post in posts %}
+      <li class="post-card">
+        <a href="{{ post.url | relative_url }}">
+          <p class="post-meta">
+            <span class="type type-{{ post.type | downcase }}">{{ post.type }}</span>
+            <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%Y.%m.%d" }}</time>
+          </p>
+          <h3>{{ post.title }}</h3>
+          <p class="summary">{{ post.summary }}</p>
+        </a>
+      </li>
+    {% endfor %}
+  </ol>
+</section>
+
+<section class="about" aria-labelledby="about-title">
+  <h2 id="about-title" class="section-title">글의 종류</h2>
+  <dl class="types">
+    <div><dt><span class="type type-concept">Concept</span></dt><dd>프로젝트에서 새로 익힌 개념</dd></div>
+    <div><dt><span class="type type-debugging">Debugging</span></dt><dd>문제, 원인, 해결 과정</dd></div>
+    <div><dt><span class="type type-guide">Guide</span></dt><dd>설치와 설정 방법</dd></div>
+    <div><dt><span class="type type-explanation">Explanation</span></dt><dd>대표 화면과 기능의 구조, 동작</dd></div>
+  </dl>
+</section>
