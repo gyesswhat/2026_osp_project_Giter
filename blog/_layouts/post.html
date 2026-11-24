@@ -1,0 +1,32 @@
+---
+layout: default
+---
+{% assign posts = site.posts | sort: "order" %}
+<article class="post">
+  <header class="post-head">
+    <p class="post-meta">
+      <span class="type type-{{ page.type | downcase }}">{{ page.type }}</span>
+      <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: "%Y.%m.%d" }}</time>
+      {% if page.author %}<span>· {{ page.author }}</span>{% endif %}
+    </p>
+    <h1>{{ page.title }}</h1>
+    {% if page.summary %}<p class="post-summary">{{ page.summary }}</p>{% endif %}
+  </header>
+
+  <div class="post-body">
+    {{ content }}
+  </div>
+
+  <nav class="post-nav" aria-label="다른 글">
+    {% for p in posts %}
+      {% if p.url == page.url %}
+        {% assign i = forloop.index0 %}
+        {% assign prev_i = i | minus: 1 %}
+        {% assign next_i = i | plus: 1 %}
+        {% if i > 0 %}{% assign prev = posts[prev_i] %}<a class="prev" href="{{ prev.url | relative_url }}"><span>이전 글</span>{{ prev.title }}</a>{% endif %}
+        {% if next_i < posts.size %}{% assign next = posts[next_i] %}<a class="next" href="{{ next.url | relative_url }}"><span>다음 글</span>{{ next.title }}</a>{% endif %}
+      {% endif %}
+    {% endfor %}
+  </nav>
+  <p class="back"><a href="{{ '/' | relative_url }}">← 글 목록으로</a></p>
+</article>
