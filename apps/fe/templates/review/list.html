@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% set active_tab = "review" %}
 
@@ -18,272 +17,111 @@
       <h1 class="text-3xl font-extrabold">거래 리뷰</h1>
       <p class="mt-1 text-[#59627E]">
         거래를 마친 벗이 남긴 리뷰
-        <strong>37</strong>개
+        <strong>{{total}}</strong>개
       </p>
     </div>
 
-    <a href="{{ url_for('review_new') }}"
-       class="bg-[#2B4BF2] px-4 py-2.5 text-sm font-semibold text-white">
+    <a href="{{ url_for('review_new') }}" class="bg-[#2B4BF2] px-4 py-2.5 text-sm font-semibold text-white">
       리뷰 쓰기
     </a>
   </div>
 
-  <!-- 특정 판매자 리뷰 정보 (기본 숨김) -->
-  <div id="sellerBar"
-       class="panel mt-6 flex flex-wrap items-center gap-3 p-3 sm:p-4"
-       hidden>
+  <!-- 특정 판매자 리뷰 정보 -->
+  {% if seller_info %}
+  <div id="sellerBar" class="panel mt-6 flex flex-wrap items-center gap-3 p-3 sm:p-4">
     <p class="min-w-0 flex-1">
       <span class="mr-1 font-semibold text-stamp">판매자</span>
-      <span id="sellerName" class="font-bold"></span>
+      <span id="sellerName" class="font-bold">{{ seller_info.id }}</span>
       님이 받은 리뷰
-      <span id="sellerCount" class="num"></span>개,
+      <span id="sellerCount" class="num">{{ seller_info.count }}</span>개,
       평균 별점
-      <span id="sellerAvg" class="num text-brandink"></span>
+      <span id="sellerAvg" class="num text-brandink">{{ seller_info.avg_rating }}</span>
     </p>
 
-    <button type="button"
-            id="sellerClear"
-            class="btn-outline shrink-0">
+    <a href="{{ url_for('review_list') }}" id="sellerClear" class="btn-outline shrink-0">
       전체 리뷰 보기
-    </button>
+    </a>
   </div>
+  {% endif %}
 
   <!-- 리뷰 목록 -->
   <ul id="reviewList" class="panel mt-6">
-
-    <!-- 리뷰 1 -->
+    {% for review in reviews %}
     <li class="flex flex-wrap items-center gap-4 border-b border-dashed border-line px-5 py-5 sm:flex-nowrap">
 
-      <span class="ph relative review-thumbnail rounded-sm text-3xl"
-            style="--h:150">
-        <span class="center">📗</span>
+      <span class="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-sm bg-gray-200">
+        <span class="whitespace-nowrap text-xs text-muted">이미지 없음</span>
       </span>
 
-      <a href="{{ url_for('review_detail', name='컴퓨터구조 및 설계 5판') }}"
-         class="min-w-0 flex-1">
-        <p class="text-brandink">★★★★★</p>
+      <a href="{{ url_for('review_detail', name=review.product_name) }}" class="min-w-0 flex-1">
+
+        <p class="text-brandink">
+          {{ '★' * (review.rating | int) }}{{ '☆' * (5 - review.rating | int) }}
+        </p>
 
         <h2 class="review-title">
-          책 상태가 설명 그대로였어요
+          {{ review.title }}
         </h2>
 
         <p class="text-sm text-muted">
-          컴퓨터구조 및 설계 5판
+          {{ review.product_name }}
         </p>
 
         <p class="mt-2 text-sm">
           작성자
-          <span class="font-semibold text-brandink">ewhain_sw</span>
+          <span class="font-semibold text-brandink">{{ review.reviewer }}</span>
           · 판매자
-          <span class="font-semibold text-stamp">baekkot21</span>
+          <span class="font-semibold text-stamp">{{ review.seller }}</span>
         </p>
       </a>
 
       <span class="num review-date basis-full text-right sm:basis-auto">
-        2026.10.05
+        {{ review.date }}
       </span>
     </li>
-
-    <!-- 리뷰 2 -->
-    <li class="flex flex-wrap items-center gap-4 border-b border-dashed border-line px-5 py-5 sm:flex-nowrap">
-
-      <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
-            style="--h:45">
-        <span class="center">⌨️</span>
-      </span>
-
-      <a href="{{ url_for('review_detail', name='로지텍 K380 무선 키보드') }}"
-         class="min-w-0 flex-1">
-        <p class="text-brandink">★★★★★</p>
-
-        <h2 class="mt-1 text-lg font-bold text-ink">
-          약속 시간을 잘 맞춰 주셨어요
-        </h2>
-
-        <p class="text-sm text-muted">
-          로지텍 K380 무선 키보드
-        </p>
-
-        <p class="mt-2 text-sm">
-          작성자
-          <span class="font-semibold text-brandink">pear_blossom</span>
-          · 판매자
-          <span class="font-semibold text-stamp">ewhain_sw</span>
-        </p>
-      </a>
-
-      <span class="num review-date basis-full text-right sm:basis-auto">
-        2026.10.04
-      </span>
-    </li>
-
-    <!-- 리뷰 3 -->
-    <li class="flex flex-wrap items-center gap-4 border-b border-dashed border-line px-5 py-5 sm:flex-nowrap">
-
-      <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
-            style="--h:200">
-        <span class="center">🧊</span>
-      </span>
-
-      <a href="{{ url_for('review_detail', name='기숙사용 미니 냉장고') }}"
-         class="min-w-0 flex-1">
-        <p class="text-brandink">★★★★☆</p>
-
-        <h2 class="mt-1 text-lg font-bold text-ink">
-          냉장고 소음이 거의 없어요
-        </h2>
-
-        <p class="text-sm text-muted">
-          기숙사용 미니 냉장고
-        </p>
-
-        <p class="mt-2 text-sm">
-          작성자
-          <span class="font-semibold text-brandink">hanwoori302</span>
-          · 판매자
-          <span class="font-semibold text-stamp">hanwoori_210</span>
-        </p>
-      </a>
-
-      <span class="num review-date basis-full text-right sm:basis-auto">
-        2026.10.02
-      </span>
-    </li>
-
-    <!-- 리뷰 4 -->
-    <li class="flex flex-wrap items-center gap-4 border-b border-dashed border-line px-5 py-5 sm:flex-nowrap">
-
-      <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
-            style="--h:280">
-        <span class="center">👕</span>
-      </span>
-
-      <a href="{{ url_for('review_detail', name='이화 과잠 M 사이즈') }}"
-         class="min-w-0 flex-1">
-        <p class="text-brandink">★★★★☆</p>
-
-        <h2 class="mt-1 text-lg font-bold text-ink">
-          과잠 사이즈가 조금 컸어요
-        </h2>
-
-        <p class="text-sm text-muted">
-          이화 과잠 M 사이즈
-        </p>
-
-        <p class="mt-2 text-sm">
-          작성자
-          <span class="font-semibold text-brandink">cse24</span>
-          · 판매자
-          <span class="font-semibold text-stamp">gwajam_22</span>
-        </p>
-      </a>
-
-      <span class="num review-date basis-full text-right sm:basis-auto">
-        2026.09.30
-      </span>
-    </li>
-
-    <!-- 리뷰 5 -->
-    <li class="flex flex-wrap items-center gap-4 border-b border-dashed border-line px-5 py-5 sm:flex-nowrap">
-
-      <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
-            style="--h:35">
-        <span class="center">📚</span>
-      </span>
-
-      <a href="{{ url_for('review_detail', name='토익 기출 문제집 세트') }}"
-         class="min-w-0 flex-1">
-        <p class="text-brandink">★★★☆☆</p>
-
-        <h2 class="mt-1 text-lg font-bold text-ink">
-          필기 흔적이 생각보다 많았어요
-        </h2>
-
-        <p class="text-sm text-muted">
-          토익 기출 문제집 세트
-        </p>
-
-        <p class="mt-2 text-sm">
-          작성자
-          <span class="font-semibold text-brandink">toeic900</span>
-          · 판매자
-          <span class="font-semibold text-stamp">baekkot21</span>
-        </p>
-      </a>
-
-      <span class="num review-date basis-full text-right sm:basis-auto">
-        2026.09.28
-      </span>
-    </li>
-
-    <!-- 리뷰 6 -->
-    <li class="flex flex-wrap items-center gap-4 px-5 py-5 sm:flex-nowrap">
-
-      <span class="ph relative h-16 w-16 shrink-0 rounded-sm text-3xl"
-            style="--h:260">
-        <span class="center">📘</span>
-      </span>
-
-      <a href="{{ url_for('review_detail', name='운영체제 10판') }}"
-         class="min-w-0 flex-1">
-        <p class="text-brandink">★★★★★</p>
-
-        <h2 class="mt-1 text-lg font-bold text-ink">
-          거의 새 책이라 만족해요
-        </h2>
-
-        <p class="text-sm text-muted">
-          운영체제 10판
-        </p>
-
-        <p class="mt-2 text-sm">
-          작성자
-          <span class="font-semibold text-brandink">os_study</span>
-          · 판매자
-          <span class="font-semibold text-stamp">baekkot21</span>
-        </p>
-      </a>
-
-      <span class="num review-date basis-full text-right sm:basis-auto">
-        2026.09.20
-      </span>
-    </li>
-
+    {% endfor %}
   </ul>
 
-  <!-- 판매자 리뷰가 없을 때 표시 (기본 숨김) -->
-  <p id="reviewEmpty"
-     class="panel mt-6 p-8 text-center text-muted"
-     hidden>
+  <!-- 리뷰가 없을 때 표시 -->
+  {% if not reviews %}
+  <p id="reviewEmpty" class="panel mt-6 p-8 text-center text-muted">
+    {% if seller %}
     이 판매자가 받은 리뷰가 아직 없어요.
+    {% else %}
+    아직 등록된 리뷰가 없어요.
+    {% endif %}
   </p>
+  {% endif %}
+
+
 
   <!-- 페이지네이션 -->
-  <nav class="mt-10 flex items-center justify-center gap-3 text-sm"
-       aria-label="페이지">
+  {% if total_pages > 1 %}
+  <nav class="mt-10 flex items-center justify-center gap-3 text-sm" aria-label="페이지">
 
-    <button type="button"
-            class="px-4 py-2 font-semibold text-muted">
+    {% if page > 1 %}
+    <a href="{{ url_for('review_list', page=page-1, seller=seller) }}" class="px-4 py-2 font-semibold">
       이전
-    </button>
+    </a>
+    {% endif %}
 
-    <button type="button"
-            class="rounded bg-brand px-4 py-3 font-bold text-white"
-            aria-current="page">
-      1
-    </button>
+    {% for p in range(1, total_pages + 1) %}
+    <a href="{{ url_for('review_list', page=p, seller=seller) }}"
+      class="{% if p == page %}rounded bg-brand px-4 py-3 font-bold text-white{% else %}px-4 py-2 font-bold{% endif %}"
+      {% if p==page %}aria-current="page" {% endif %}>
+      {{ p }}
+    </a>
+    {% endfor %}
 
-    <button type="button"
-            class="px-4 py-2 font-bold">
-      2
-    </button>
-
-    <button type="button"
-            class="px-4 py-2 font-semibold text-muted">
+    {% if page < total_pages %} <a href="{{ url_for('review_list', page=page+1, seller=seller) }}"
+      class="px-4 py-2 font-semibold">
       다음
-    </button>
+      </a>
+      {% endif %}
 
   </nav>
+  {% endif %}
+
 
 </div>
 
