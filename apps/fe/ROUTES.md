@@ -39,7 +39,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 예정 |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
-| 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 예정 (BE 구현, 화면은 #31) |
+| 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 화면 |
 | 가격 제안 | POST | `/auction/bid` | `auction_bid` | (redirect) | BE 구현 |
 | 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE 구현, 화면은 #32) |
 | 경매 수락, 거절 | POST | `/auction/decide` | `auction_decide` | (redirect) | BE 구현 |
@@ -75,7 +75,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
   - `price`: `kind=fixed`일 때만 보냅니다. 숫자만 (쉼표 없음)
   - `duration`: 제안 받는 기간(일) `1` `3` `5` `7`. `kind=bid`일 때만 보냅니다 (schema.dbml `auctions.duration_days`)
   - 방식에 맞지 않는 칸은 화면에서 disabled로 바꿔 보내지 않습니다
-- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `상품을 등록했어요. N일 동안 제안을 받아요.`)
+- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `auction_detail`로 redirect + flash `상품을 등록했어요. N일 동안 제안을 받아요.`)
 - 실패: 같은 템플릿에 `form`(입력값), `errors`(필드별 메시지 dict)를 넘겨 다시 그림
 - 같은 상품명이 이미 있거나 `new` `reserve` `like` `done`이면 `errors['name']`
 - 방식·가격·기간 오류는 `errors['kind']`, `errors['price']`, `errors['duration']`
