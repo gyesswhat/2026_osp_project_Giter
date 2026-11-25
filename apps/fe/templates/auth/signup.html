@@ -2,6 +2,9 @@
 {% from "components/_form_fields.html" import button, input %}
 {% set active_tab = '' %}
 
+{% set f = form or {} %}
+{% set err = errors or {} %}
+
 {% block title %}회원가입 | BoughtIT{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
@@ -15,6 +18,11 @@
 
   <div class="panel p-6 sm:p-8">
     <form action="{{ url_for('auth_signup') }}" method="post" class="space-y-6">
+      {# 특정 필드에 속하지 않는 오류 #}
+      {% if err.general %}
+      <p class="error" role="alert">{{ err.general }}</p>
+      {% endif %}
+
       {# 아이디 입력 및 중복확인 #}
       <div>
         <label for="user_id" class="label">
@@ -22,11 +30,16 @@
         </label>
         <div class="flex items-end gap-2">
           <div class="flex-1">
-            <input id="user_id" name="user_id" type="text" placeholder="아이디를 입력하세요" required class="field">
+            <input id="user_id" name="user_id" type="text" value="{{ f.user_id or '' }}" placeholder="아이디를 입력하세요" required class="field"
+              {%- if err.user_id %} aria-invalid="true"{% endif %} aria-describedby="user_id-msg">
           </div>
           {{ button('중복 확인', variant='outline', type='button', class='shrink-0 h-[38px] px-3') }}
         </div>
+        {% if err.user_id %}
+        <p id="user_id-msg" class="error" role="alert">{{ err.user_id }}</p>
+        {% else %}
         <p id="user_id-msg" class="help" hidden></p>
+        {% endif %}
       </div>
       
       {# 비밀번호 입력 #}
@@ -36,6 +49,7 @@
           type='password',
           placeholder='비밀번호를 입력하세요',
           help='영문과 숫자를 섞어 8자리 이상 입력해 주세요.',
+          error=err.password,
           required=true
       ) }}
 
@@ -45,6 +59,7 @@
           label='비밀번호 확인',
           type='password',
           placeholder='비밀번호를 다시 입력하세요',
+          error=err.password_confirm,
           required=true
       ) }}
 
@@ -58,12 +73,13 @@
         </label>
         <div class="flex items-end gap-2">
           <div class="flex-1">
-            <input id="email" name="email" type="email" placeholder="example@ewha.ac.kr" required class="field">
+            <input id="email" name="email" type="email" value="{{ f.email or '' }}" placeholder="example@ewha.ac.kr" required class="field"
+              {%- if err.email %} aria-invalid="true"{% endif %} aria-describedby="email-msg">
           </div>
           {{ button('인증 요청', variant='outline', type='button', class='shrink-0 h-[38px] px-3') }}
         </div>
         <p class="help">BoughtIT은 이화인만 가입할 수 있어요. ewha.ac.kr 또는 ewhain.net 메일로 인증해 주세요.</p>
-        <p id="email-msg" class="error" hidden></p>
+        <p id="email-msg" class="error"{% if err.email %} role="alert"{% else %} hidden{% endif %}>{{ err.email or '' }}</p>
       </div>
 
       {# 인증번호 입력 칸 #}
@@ -97,6 +113,7 @@
           name='phone',
           label='전화번호',
           type='tel',
+          value=f.phone,
           placeholder='010-0000-0000',
           optional=true
       ) }}

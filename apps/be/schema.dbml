@@ -106,7 +106,7 @@ Enum message_kind {
 
 Table users [headerColor: #2B4BF2] {
   id varchar [pk, note: '아이디. FE 필드 user_id. 로그인 후 session["id"]에 저장한다']
-  pw_hash varchar [not null, note: '비밀번호의 해시(werkzeug.security.generate_password_hash). FE 필드 password. 원문은 저장하지 않는다. 규칙: 영문과 숫자를 섞어 8자 이상']
+  pw_hash varchar [not null, note: '비밀번호의 SHA-256 해시(hashlib.sha256). FE 필드 password. 원문은 저장하지 않는다. 규칙: 영문과 숫자를 섞어 8자 이상']
   email varchar [not null, unique, note: '이화인 메일. ewhain.net 또는 ewha.ac.kr 도메인만 허용한다']
   phone varchar [null, note: '전화번호 (선택). 예: 010-0000-0000']
   created_at datetime [not null, note: '가입 시각']

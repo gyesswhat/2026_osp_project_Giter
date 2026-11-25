@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="{{ site.lang | default: 'ko' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.summary | default: site.description }}">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap head-row">
+      <a class="logo" href="{{ '/' | relative_url }}">BoughtIT <span>Tech Blog</span></a>
+      <nav class="head-nav" aria-label="블로그 메뉴">
+        <a href="{{ '/' | relative_url }}">글 목록</a>
+        <a href="{{ site.repo_url }}">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    {{ content }}
+  </main>
+
+  <footer class="wrap site-foot">
+    <span>BoughtIT(벗잇) · 2026 Open Software Platform 팀 프로젝트</span>
+    <a href="{{ site.repo_url }}">{{ site.repo_url | remove: 'https://' }}</a>
+  </footer>
+</body>
+</html>

@@ -8,6 +8,7 @@ BE 연동 전에 base.html과 공통 컴포넌트, 각자 만든 화면을 확�
 """
 
 import math
+from datetime import datetime, timedelta
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from jinja2 import TemplateNotFound
@@ -25,7 +26,7 @@ SCREENS = [
     ("/review/<path:name>", "review_detail", "review/detail.html"),
     ("/review/new", "review_new", "review/new.html"),
     ("/review/done", "review_done", "review/done.html"),
-    ("/auction/detail", "auction_detail", "auction/detail.html"),
+    ("/auction/detail/<path:name>", "auction_detail", "auction/detail.html"),
     ("/auction/end", "auction_end", "auction/end.html"),
     ("/chat", "chat_room", "chat/room.html"),
     ("/wanted", "wanted_list", "wanted/list.html"),
@@ -43,8 +44,15 @@ SAMPLE_PRODUCTS = [
     {"name": "전기 주전자 1L", "price": 8000, "address": "이하우스", "likes": 7, "sale_status": "done"},
 ]
 
+
+def _ends_in(**delta):
+    """지금부터 delta 뒤의 마감 시각(ISO 문자열). 서버를 켤 때마다 남은 시간이 시안과 같게 보이도록 상대 시각으로 둔다."""
+    return (datetime.now().astimezone() + timedelta(**delta)).isoformat(timespec="seconds")
+
+
 # 상품 화면 미리보기용 더미 (시안 예시 데이터 기준). 목록 순서 = 최신순
 # kind: fixed(가격 정해진 물건) | bid(가격 제안 받는 중). bid의 price는 지금 최고 제안가
+# bid 상품: bid_count 제안 수, end_at 마감 시각(ISO), closed 마감 여부 (schema.dbml auctions)
 # status: 상품 상태(최상/상/중/하). sale_status: 판매 상태(sale/hold/done)
 PREVIEW_PRODUCTS = [
     {"name": "컴퓨터구조 및 설계 5판", "seller": "baekkot21", "price": "18000", "address": "ECC 앞", "status": "상",
@@ -55,7 +63,8 @@ PREVIEW_PRODUCTS = [
                 {"building": "기타", "detail": "이대역 2번 출구"}],
      "slots": ["10.12 (월) 13:00", "10.12 (월) 15:00", "10.13 (화) 12:00", "10.13 (화) 16:30", "10.14 (수) 11:00"]},
     {"name": "아이패드 에어 5세대 64GB", "seller": "apple_ewha", "price": 435000, "address": "포스코관", "status": "최상",
-     "likes": 31, "sale_status": "sale", "kind": "bid", "date": "2026.10.06"},
+     "likes": 31, "sale_status": "sale", "kind": "bid", "date": "2026.10.06",
+     "bid_count": 7, "end_at": _ends_in(days=2, hours=13, minutes=22), "closed": False},
     {"name": "이화 과잠 M 사이즈", "seller": "gwajam_22", "price": 25000, "address": "학생문화관", "status": "상",
      "likes": 18, "sale_status": "hold", "kind": "fixed", "date": "2026.10.05"},
     {"name": "로지텍 K380 무선 키보드", "seller": "ewhain_sw", "price": 22000, "address": "아산공학관", "status": "중",
@@ -71,11 +80,14 @@ PREVIEW_PRODUCTS = [
      "likes": 3, "sale_status": "sale", "kind": "fixed", "date": "2026.10.02",
      "description": "각도 조절되는 접이식 독서대입니다. 전공책 두 권까지 올라가요."},
     {"name": "필름 카메라 올림푸스 뮤2", "seller": "film_lover", "price": 120000, "address": "조형예술관", "status": "중",
-     "likes": 20, "sale_status": "sale", "kind": "bid", "date": "2026.10.01"},
+     "likes": 20, "sale_status": "sale", "kind": "bid", "date": "2026.10.01",
+     "bid_count": 12, "end_at": _ends_in(hours=26), "closed": False},
     {"name": "이케아 스탠드 조명", "seller": "hanwoori_210", "price": 0, "address": "한우리집", "status": "상",
-     "likes": 2, "sale_status": "sale", "kind": "bid", "date": "2026.09.30"},
+     "likes": 2, "sale_status": "sale", "kind": "bid", "date": "2026.09.30",
+     "bid_count": 0, "end_at": _ends_in(hours=5), "closed": False},
     {"name": "닌텐도 스위치 라이트", "seller": "ewhain_sw", "price": 165000, "address": "ECC", "status": "상",
-     "likes": 14, "sale_status": "sale", "kind": "bid", "date": "2026.09.29"},
+     "likes": 14, "sale_status": "sale", "kind": "bid", "date": "2026.09.29",
+     "bid_count": 6, "end_at": _ends_in(hours=-1), "closed": True},
     {"name": "공학수학 솔루션", "seller": "math_ewha", "price": 12000, "address": "아산공학관", "status": "중",
      "likes": 4, "sale_status": "sale", "kind": "fixed", "date": "2026.09.28"},
     {"name": "무선 마우스 M330", "seller": "cse24", "price": 15000, "address": "ECC", "status": "상",
@@ -131,13 +143,95 @@ def product_list():
 def _find_product(name):
     return next((p for p in PREVIEW_PRODUCTS if p["name"] == name), None)
 
+def review_detail(name):
+    """리뷰 상세 화면 미리보기용 더미 데이터"""
+    review = {
+        "product_name": name,
+        "reviewer": "ewhain_sw",
+        "seller": "baekkot21",
+        "rating": 5,
+        "title": "책 상태가 설명 그대로였어요",
+        "content": "필기가 조금 있다고 하셨는데 정말 연필로 몇 군데만 있어서 지우고 바로 쓸 수 있었어요.",
+        "photo": "",
+        "created_at": "2026-10-05",
+        "date": "2026.10.05",
+    }
+
+    product = _find_product(name)
+
+    return render_template(
+        "review/detail.html",
+        review=review,
+        product=product,
+    )
+
 
 def product_detail(name):
     """상품 상세 미리보기. /product/<상품명> 으로 찾고, 없으면 404"""
     product = _find_product(name)
     if product is None:
         abort(404)
-    return render_template("product/detail.html", product=product, liked=False)
+    return render_template("product/detail.html", product=product, liked=name in session.get("liked", []))
+
+
+def product_like():
+    """찜 토글 미리보기. BE product_like와 같은 흐름이고, 찜 목록은 세션에만 둔다 (DB에 저장하지 않음)"""
+    if not session.get("id"):
+        flash("찜하려면 로그인해 주세요.", "error")
+        return redirect(url_for("auth_login"))
+    name = request.form.get("name", "")
+    product = _find_product(name)
+    if product is None:
+        abort(404)
+    if product.get("seller") == session["id"]:
+        flash("내가 올린 상품은 찜할 수 없어요.", "error")
+        return redirect(url_for("product_detail", name=name))
+    liked = session.get("liked", [])
+    if name in liked:
+        liked.remove(name)
+        product["likes"] = max(0, product.get("likes", 0) - 1)
+        flash("찜을 취소했어요.")
+    else:
+        liked.append(name)
+        product["likes"] = product.get("likes", 0) + 1
+        flash("찜했어요.")
+    session["liked"] = liked
+    return redirect(url_for("product_detail", name=name))
+
+
+def auction_detail(name):
+    """경매 상세 미리보기: 상품명으로 경매 상품을 조회"""
+    product = _find_product(name)
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    highest_bid = int(product["price"])
+    auction = {
+        "top_price": highest_bid,
+        "bid_count": 0,
+        "end_at": "2026-11-25T18:00:00",
+        "closed": False,
+    }
+
+    if highest_bid==0:
+        bids=[]
+    else:
+        bids = [
+            {"bidder": "ab***12", "date": "11.20 14:30", "price": highest_bid},
+            {"bidder": "ki***07", "date": "11.20 12:15", "price": highest_bid - 5000},
+            {"bidder": "ew***25", "date": "11.19 18:42", "price": highest_bid - 15000},
+        ]   
+    auction["bid_count"] = len(bids)
+
+    return render_template(
+        "auction/detail.html",
+        product=product,
+        auction=auction,
+        bids=bids,
+        my_bid=None,
+       min_price=highest_bid+5000,
+    )
 
 
 def product_reserve():
@@ -169,8 +263,13 @@ def product_new():
                         ("address", "거래할 주소를 입력해 주세요."), ("description", "상세 설명을 입력해 주세요.")]:
         if not form.get(field, "").strip():
             errors[field] = text
-    if _int(form.get("price")) is None:
+    kind = form.get("kind", "fixed")
+    if kind not in ("fixed", "bid"):
+        errors["kind"] = "가격 정하는 방식을 골라 주세요."
+    elif kind == "fixed" and _int(form.get("price")) is None:
         errors["price"] = "가격을 숫자로 입력해 주세요."
+    elif kind == "bid" and _int(form.get("duration")) not in (1, 3, 5, 7):
+        errors["duration"] = "제안 받는 기간을 골라 주세요."
     if form.get("status") not in ("최상", "상", "중", "하"):
         errors["status"] = "상품 상태를 골라 주세요."
     if form.get("name", "").strip().lower() in RESERVED_NAMES:
@@ -181,9 +280,11 @@ def product_new():
         return render_template("product/new.html", form=form, errors=errors), 400
 
     product = {k: form.get(k, "").strip() for k in ("seller", "name", "address", "status", "description")}
-    product.update(price=_int(form["price"]), likes=0, sale_status="sale", kind="fixed")
+    # bid의 price는 지금 최고 제안가라서 제안이 없는 새 상품은 0으로 둔다
+    product.update(price=_int(form.get("price"), 0) if kind == "fixed" else 0,
+                   likes=0, sale_status="sale", kind=kind)
     PREVIEW_PRODUCTS.insert(0, product)
-    flash("상품을 등록했어요.")
+    flash(f"상품을 등록했어요. {form['duration']}일 동안 제안을 받아요." if kind == "bid" else "상품을 등록했어요.")
     return redirect(url_for("product_detail", name=product["name"]))
 
 
@@ -191,7 +292,7 @@ product_new.methods = ["GET", "POST"]
 
 # /product/<path:name>, /review/<path:name> 보다 먼저 잡히는 고정 경로.
 # 이 이름의 상품은 상세(상품·리뷰)로 갈 수 없어서 등록을 막는다
-RESERVED_NAMES = {"new", "reserve", "done"}
+RESERVED_NAMES = {"new", "reserve", "done", "like"}
 
 
 def review_new():
@@ -237,6 +338,66 @@ review_new.methods = ["GET", "POST"]
 def review_done():
     """리뷰 등록 완료 미리보기. 방금 제출한 값을 세션에서 꺼내 보여 준다"""
     return render_template("review/done.html", review=session.get("last_review"))
+
+def review_list():
+    """리뷰 목록 미리보기용 더미 데이터"""
+    reviews = [
+        {
+            "product_name": "컴퓨터구조 및 설계 5판",
+            "reviewer": "ewhain_sw",
+            "seller": "baekkot21",
+            "rating": 5,
+            "title": "책 상태가 설명 그대로였어요",
+            "date": "2026.10.05",
+            "photo": "",
+        },
+        {
+            "product_name": "로지텍 K380 무선 키보드",
+            "reviewer": "pear_blossom",
+            "seller": "ewhain_sw",
+            "rating": 5,
+            "title": "약속 시간을 잘 맞춰 주셨어요",
+            "date": "2026.10.04",
+            "photo": "",
+        },
+        {
+            "product_name": "기숙사용 미니 냉장고",
+            "reviewer": "hanwoori302",
+            "seller": "hanwoori_210",
+            "rating": 4,
+            "title": "냉장고 소음이 거의 없어요",
+            "date": "2026.10.02",
+            "photo": "",
+        },
+    ]
+
+    seller = request.args.get("seller", "")
+    if seller:
+        reviews = [r for r in reviews if r["seller"] == seller]
+
+    total = len(reviews)
+    page = max(1, int(request.args.get("page", 1)))
+    total_pages = max(1, (total + 9) // 10)
+    page = min(page, total_pages)
+
+    seller_info = None
+    if seller:
+        avg = round(sum(r["rating"] for r in reviews) / total, 1) if total else 0
+        seller_info = {
+            "id": seller,
+            "avg_rating": avg,
+            "count": total,
+        }
+
+    return render_template(
+        "review/list.html",
+        reviews=reviews[(page - 1) * 10:page * 10],
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        seller=seller,
+        seller_info=seller_info,
+    )
 
 
 def auth_login():
@@ -303,9 +464,12 @@ def auction_end():
 CUSTOM_VIEWS = {
     "product_list": product_list,
     "product_detail": product_detail,
+    "auction_detail": auction_detail,
     "product_new": product_new,
     "review_new": review_new,
     "review_done": review_done,
+    "review_list": review_list,
+    "review_detail": review_detail,
     "auth_login": auth_login,
     "auth_signup": auth_signup,
     "auction_end": auction_end,
@@ -330,7 +494,13 @@ for path, endpoint, template in SCREENS:
 
 
 app.add_url_rule("/product/reserve", "product_reserve", product_reserve, methods=["POST"])
+app.add_url_rule("/product/like", "product_like", product_like, methods=["POST"])
 
+@app.route("/auction/bid", methods=["POST"])
+def auction_bid():
+    name = request.form.get("name", "")
+    flash("미리보기에서는 실제 제안이 저장되지 않습니다.")
+    return redirect(url_for("auction_detail", name=name))
 
 @app.route("/logout")
 def auth_logout():

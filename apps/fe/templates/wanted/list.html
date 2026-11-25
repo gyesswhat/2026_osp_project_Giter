@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button, chip_group %}
+{% from "components/_product_card.html" import won %}
+{% from "components/_pagination.html" import pagination %}
+{% set active_tab = 'wanted' %}
+
+{% block title %}구해요 | BoughtIT{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/wanted.css') }}">{% endblock %}
+
+{% block content %}
+  {% set default_items = [
+    {'id': 1, 'name': '운영체제 10판 구해요', 'category': 'book', 'budget': 20000, 'offers': 4, 'when': '11.10까지', 'img_path': none, 'state': 'open'},
+    {'id': 2, 'name': '공학용 계산기 카시오 fx-570', 'category': 'digital', 'budget': 15000, 'offers': 2, 'when': '11.06까지', 'img_path': none, 'state': 'open'},
+    {'id': 3, 'name': '기숙사 전기장판 싱글', 'category': 'dorm', 'budget': 25000, 'offers': 0, 'when': '11.15까지', 'img_path': none, 'state': 'open'},
+    {'id': 4, 'name': '아이패드 펜슬 2세대', 'category': 'digital', 'budget': 70000, 'offers': 6, 'when': '11.05까지', 'img_path': none, 'state': 'open'},
+    {'id': 5, 'name': '미대 실기용 이젤', 'category': 'etc', 'budget': 30000, 'offers': 1, 'when': '11.12까지', 'img_path': none, 'state': 'open'},
+    {'id': 6, 'name': '토익 LC 1000제', 'category': 'book', 'budget': 8000, 'offers': 3, 'when': '11.01까지', 'img_path': none, 'state': 'done'}
+  ] %}
+  {% set wanted_items = items if items is defined else default_items %}
+  {% set current_cat = category | default(request.args.get('category', 'all')) %}
+  {% set categories = [
+    ('all', '전체'),
+    ('book', '도서'),
+    ('digital', '전자기기'),
+    ('dorm', '생활용품'),
+    ('etc', '기타')
+  ] %}
+
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="page-title">구해요</h1>
+      <p class="mt-1 text-muted">찾는 물건과 예산을 올리면 갖고 있는 벗들이 가격을 제안해요.</p>
+    </div>
+    {{ button('구해요 글쓰기', variant='primary', href=url_for('wanted_new'), class='shrink-0') }}
+  </div>
+
+  <div class="mt-6">
+    {{ chip_group('category', categories, selected=current_cat, label='분류', sr_label=true, required=true, id='wantedCategoryChips') }}
+  </div>
+
+  <div id="wantedGrid" class="mt-7 grid gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+    {% for w in wanted_items %}
+      {% set is_done = (w.state == 'done' or w.sale_status == 'done') %}
+      {% set item_cat = w.category | default('all') %}
+      {% set item_title = w.title | default(w.name) %}
+      {% set src = url_for('static', filename='uploads/' ~ w.img_path) if w.img_path else none %}
+      <article class="slip min-w-0 {{ 'opacity-70' if is_done }}"
+               data-wanted-card
+               data-category="{{ item_cat }}"
+               {% if current_cat != 'all' and item_cat != current_cat %}hidden{% endif %}>
+        <a href="{{ url_for('wanted_detail') }}" class="flex gap-4 p-4">
+          <span class="ph relative h-20 w-20 shrink-0 overflow-hidden rounded-sm">
+            {% if src %}
+              <img src="{{ src }}" alt="" loading="lazy" class="h-full w-full object-cover {{ 'opacity-50' if is_done }}">
+            {% else %}
+              <span class="center text-xs text-muted">이미지 없음</span>
+            {% endif %}
+          </span>
+          <span class="block min-w-0 flex-1 space-y-1">
+            {% if is_done %}
+              <span class="tag-sale">구했어요</span>
+            {% else %}
+              <span class="tag-hold">구하는 중</span>
+            {% endif %}
+            <span class="block break-keep font-semibold leading-snug">{{ item_title }}</span>
+            <span class="row text-sm">
+              <span class="text-muted">예산</span>
+              <span class="leader"></span>
+              <span class="num text-brandink">{{ won(w.budget) }}까지</span>
+            </span>
+            <span class="flex justify-between gap-2 text-xs text-muted">
+              <span class="font-mono">{{ w.when | default(w.due_date ~ '까지' if w.due_date else '') }}</span>
+              <span class="font-mono">받은 제안 {{ w.offers | default(0) }}</span>
+            </span>
+          </span>
+        </a>
+      </article>
+    {% endfor %}
+  </div>
+
+  <p id="wantedEmpty" class="panel mt-7 p-8 text-center text-muted" {% if wanted_items %}hidden{% endif %}>
+    해당 분류에 올라온 구해요 글이 없어요. 다른 분류를 보거나 먼저 글을 올려 보세요.
+  </p>
+
+  {% if page is defined and total_pages is defined %}
+    {{ pagination(page, total_pages, 'wanted_list', category=(current_cat if current_cat != 'all' else none)) }}
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/wanted.js') }}"></script>
+{% endblock %}

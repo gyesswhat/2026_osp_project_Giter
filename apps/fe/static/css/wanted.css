@@ -1,0 +1,18 @@
+/* 구해요(wanted) 도메인 전용 스타일
+ * 공통 스타일(common.css)과 Tailwind 유틸리티로 표현하기 어려운 화면 전용 스타일만 정의한다.
+ */
+
+/* 분류 칩 전환으로 카드 수가 줄어 스크롤이 사라질 때 화면 좌우가 덜컹거리지 않도록 스크롤바 영역 유지 */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* 구해요 글쓰기: 예산 상한 suffix('원까지') 우측 여백 확보 */
+#budget {
+  padding-right: 4rem;
+}
+
+/* 구해요 상세: 받은 제안 카드 (종이 위 카드라 바탕색을 --bg로 맞춘다) */
+.wanted-offer-card {
+  --paper: var(--bg);
+}

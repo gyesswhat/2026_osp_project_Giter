@@ -71,19 +71,7 @@
   render();
 })();
 
-// ---------- 상품 상세: 찜 버튼 ----------
-// 지금은 화면에서만 바뀐다. BE 연동 시 여기서 찜 API를 부르면 된다.
-(() => {
-  const btn = document.querySelector('[data-like-button]');
-  if (!btn) return;
-  const count = document.querySelector('[data-like-count]');
-  btn.addEventListener('click', () => {
-    const on = btn.getAttribute('aria-pressed') !== 'true';
-    btn.setAttribute('aria-pressed', String(on));
-    btn.textContent = on ? '♥ 찜한 물건' : '♡ 찜하기';
-    if (count) count.textContent = Math.max(0, +count.textContent + (on ? 1 : -1));
-  });
-})();
+// 상품 상세의 찜 버튼은 POST /product/like 폼으로 보낸다 (product/detail.html). 따로 JS가 없다.
 
 // ---------- 상품 상세: 약속 잡기 ----------
 // 장소와 시간 칩을 하나씩 고르면 신청 버튼이 켜진다.
@@ -184,7 +172,7 @@ const PHOTO_MAX = 5 * 1024 * 1024;
   });
 })();
 
-// ---------- 상품 등록: 가격 쉼표 + 제출 전 확인 ----------
+// ---------- 상품 등록: 가격 정하는 방식 + 가격 쉼표 + 제출 전 확인 ----------
 (() => {
   const form = document.getElementById('productNewForm');
   if (!form) return;
@@ -195,6 +183,42 @@ const PHOTO_MAX = 5 * 1024 * 1024;
     const digits = price.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
     price.value = digits ? Number(digits).toLocaleString('ko-KR') : '';
   });
+
+  // 가격 정하는 방식: fixed(가격 정해서 올리기) | bid(가격 제안 받기)
+  // 고른 방식의 상자만 보이고, 숨긴 상자의 칸은 disabled로 바꿔 폼에 실리지 않게 한다.
+  const kindOf = () => form.querySelector('input[name="kind"]:checked')?.value || 'fixed';
+  const durationGroup = form.querySelector('[data-chip-group][data-name="duration"]');
+  const durationEnd = form.querySelector('[data-duration-end]');
+  const submitBtn = form.querySelector('[data-submit-label]');
+  const wk = ['일', '월', '화', '수', '목', '금', '토'];
+  const pad2 = (n) => String(n).padStart(2, '0');
+  // 예) 11.25 (화) 14:30
+  const fmtDate = (d) => `${d.getMonth() + 1}.${pad2(d.getDate())} (${wk[d.getDay()]}) ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const durationOf = () => Number(durationGroup?.querySelector('.chip[aria-pressed="true"]')?.value || 0);
+
+  function renderDuration() {
+    if (!durationEnd) return;
+    const days = durationOf();
+    durationEnd.textContent = days ? fmtDate(new Date(Date.now() + days * 86400000)) : '기간을 골라 주세요';
+  }
+
+  function renderKind() {
+    const kind = kindOf();
+    form.querySelectorAll('[data-kind-box]').forEach((box) => {
+      const on = box.dataset.kindBox === kind;
+      box.hidden = !on;
+      box.querySelectorAll('input, button').forEach((el) => { el.disabled = !on; });
+    });
+    if (submitBtn) submitBtn.textContent = kind === 'bid' ? '제안 받기 시작' : '상품 등록';
+    renderDuration();
+  }
+
+  form.querySelectorAll('input[name="kind"]').forEach((r) => r.addEventListener('change', () => {
+    renderKind();
+    // 방식을 바꾸면 숨겨진 칸의 오류 표시는 지운다
+    setError(kindOf() === 'bid' ? 'price' : 'duration', '');
+  }));
+  durationGroup?.addEventListener('chipchange', renderDuration);
 
   const setError = (field, text) => {
     const msg = document.getElementById(`${field}-msg`);
@@ -212,11 +236,13 @@ const PHOTO_MAX = 5 * 1024 * 1024;
     }
   };
 
+  const CHIP_FIELDS = ['status', 'duration']; // 칩 그룹으로 고르는 칸
   const rules = {
     picture: () => (form.picture.files.length ? '' : '대표 사진을 올려 주세요.'),
     seller: () => (form.seller.value.trim() ? '' : '판매자 ID를 입력해 주세요.'),
     name: () => (form.name.value.trim() ? '' : '상품명을 입력해 주세요.'),
-    price: () => (/^\d+$/.test(price.value.replace(/,/g, '')) ? '' : '가격을 숫자로 입력해 주세요.'),
+    price: () => (kindOf() !== 'fixed' || /^\d+$/.test(price.value.replace(/,/g, '')) ? '' : '가격을 숫자로 입력해 주세요.'),
+    duration: () => (kindOf() !== 'bid' || durationOf() ? '' : '제안 받는 기간을 골라 주세요.'),
     address: () => (form.address.value.trim() ? '' : '거래할 주소를 입력해 주세요.'),
     status: () => (form.querySelector('input[name="status"]') ? '' : '상품 상태를 골라 주세요.'),
     description: () => (form.description.value.trim() ? '' : '상세 설명을 입력해 주세요.'),
@@ -224,11 +250,12 @@ const PHOTO_MAX = 5 * 1024 * 1024;
 
   // 오류가 난 칸은 고치는 즉시 메시지를 지운다
   Object.keys(rules).forEach((field) => {
-    const el = field === 'status' ? form.querySelector('[data-name="status"]') : form.querySelector(`#${field}`);
+    const isChip = CHIP_FIELDS.includes(field);
+    const el = isChip ? form.querySelector(`[data-name="${field}"]`) : form.querySelector(`#${field}`);
     if (!el) return;
-    const ev = field === 'status' ? 'chipchange' : (field === 'picture' ? 'change' : 'input');
+    const ev = isChip ? 'chipchange' : (field === 'picture' ? 'change' : 'input');
     el.addEventListener(ev, () => {
-      if (el.getAttribute('aria-invalid') === 'true' || field === 'status') setError(field, rules[field]());
+      if (el.getAttribute('aria-invalid') === 'true' || isChip) setError(field, rules[field]());
     });
   });
 
@@ -243,11 +270,13 @@ const PHOTO_MAX = 5 * 1024 * 1024;
     if (first) {
       e.preventDefault();
       const target = first === 'picture' ? form.querySelector('[data-photo-drop]')
-        : first === 'status' ? form.querySelector('[data-name="status"] .chip') : form.querySelector(`#${first}`);
+        : CHIP_FIELDS.includes(first) ? form.querySelector(`[data-name="${first}"] .chip`) : form.querySelector(`#${first}`);
       target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       target?.focus({ preventScroll: true });
       return;
     }
     price.value = price.value.replace(/,/g, '');
   });
+
+  renderKind();
 })();
