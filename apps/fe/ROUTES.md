@@ -120,8 +120,9 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `auction_decide` `/auction/decide`
 - POST: `name`(상품명), `decision`(`accepted` 또는 `rejected`)
 - 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
-- 수락하면 `decision=accepted`, 상품의 `sale_status=hold`를 저장하고 `chat_room`으로 redirect + flash
+- 수락하면 `decision=accepted`, 상품의 `sale_status=hold`를 저장하고 `auction_end`로 redirect + flash
 - 거절하면 `decision=rejected`를 저장하고 `auction_end`로 redirect + flash
+- 채팅(`chat_room`)이 구현되면 수락한 뒤 채팅으로 이동하도록 바꿉니다
 - 실패한 경우(판매자가 아님, 마감 전, 이미 결정함, 결정 기한이 지남, 제안이 없는데 수락)는 `auction_end`로 redirect하고 flash 분류가 `error`입니다
 
 ### `auction_reopen` `/auction/reopen`

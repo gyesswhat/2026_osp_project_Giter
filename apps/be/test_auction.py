@@ -196,7 +196,7 @@ def check_decide():
     assert PREVIEW_AUCTIONS[NAME]["decision"] == "rejected"  # 결정은 한 번만 한다
 
     close(hours_ago=1)
-    assert decide("accepted").headers["Location"] == "/chat"
+    assert decide("accepted").headers["Location"].startswith("/auction/end/")
     assert PREVIEW_AUCTIONS[NAME]["decision"] == "accepted"
     assert find_product(NAME)["sale_status"] == "hold"
     assert len([p for p in PREVIEW_PRODUCTS if p["name"] == NAME]) == 1

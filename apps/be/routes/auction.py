@@ -107,7 +107,7 @@ def auction_end(name):
 
 @app.route("/auction/decide", methods=["POST"])
 def auction_decide():
-    """판매자의 수락, 거절. 폼: name, decision. 수락하면 chat_room, 그 외에는 auction_end로 redirect"""
+    """판매자의 수락, 거절. 폼: name, decision. auction_end로 redirect"""
     user_id = session.get("id")
     if user_id is None:
         flash("경매를 결정하려면 로그인해 주세요.", "error")
@@ -133,7 +133,6 @@ def auction_decide():
         # 약속이 잡힌 상품의 판매 상태는 hold이다 (schema.dbml reservations). 약속 저장은 약속 신청(#41)에서 추가한다
         update_product(name, {"sale_status": "hold"})
         flash("거래를 확정했어요.")
-        return redirect(url_for("chat_room"))
     else:
         save_decision(auction, "rejected")
         flash("제안을 거절했어요. 다시 제안을 받거나 가격을 정해서 올릴 수 있어요.")
