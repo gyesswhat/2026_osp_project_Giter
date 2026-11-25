@@ -27,7 +27,7 @@ SCREENS = [
     ("/review/new", "review_new", "review/new.html"),
     ("/review/done", "review_done", "review/done.html"),
     ("/auction/detail/<path:name>", "auction_detail", "auction/detail.html"),
-    ("/auction/end", "auction_end", "auction/end.html"),
+    ("/auction/end/<path:name>", "auction_end", "auction/end.html"),
     ("/chat", "chat_room", "chat/room.html"),
     ("/wanted", "wanted_list", "wanted/list.html"),
     ("/wanted/detail", "wanted_detail", "wanted/detail.html"),
@@ -210,8 +210,8 @@ def auction_detail(name):
     auction = {
         "top_price": highest_bid,
         "bid_count": 0,
-        "end_at": "2026-11-25T18:00:00",
-        "closed": False,
+        "end_at": product.get("end_at"),
+        "closed": product.get("closed", False),
     }
 
     if highest_bid==0:
@@ -422,15 +422,13 @@ def auth_signup():
 auth_login.methods = ["GET", "POST"]
 auth_signup.methods = ["GET", "POST"]
 
-def auction_end():
+def auction_end(name):
     """상품별 경매 마감 화면 미리보기 (실제 DB 저장 없음)"""
-    name = request.args.get("name", "닌텐도 스위치 라이트")
     product = _find_product(name)
 
     if product is None or product.get("kind") != "bid":
         abort(404)
 
-    # 상품별 미리보기 제안 금액
     preview_bids = {
         "닌텐도 스위치 라이트": [165000, 160000, 152000, 140000, 120000],
         "아이패드 에어 5세대 64GB": [435000, 430000, 420000, 410000, 400000],
@@ -438,27 +436,41 @@ def auction_end():
         "이케아 스탠드 조명": [],
     }
 
-    amounts = preview_bids.get(name, [])
+    amounts = preview_bids.get(name, []) if int(product["price"]) > 0 else []
 
-    users = ["posco_23", "ewha_ink", "cse_gyu", "hanwoori7", "art_park"]
+    users = ["po***", "ew***", "cs***", "ha***", "ar***"]
     dates = ["11.02 20:51", "11.02 18:05", "11.01 23:11",
              "10.31 22:47", "10.30 19:31"]
 
     bids = [
-        {"user": user, "amount": amount, "date": date}
+        {"bidder": user, "price": amount, "date": date}
         for user, amount, date in zip(users, amounts, dates)
     ]
+    if bids and session.get("id") == product["seller"]:
+        bids[0]["bidder"] = "posco_23"
+
+    decisions = session.get("auction_decisions", {})
+
+    auction = {
+        "top_price": max(amounts, default=0),
+        "bid_count": len(bids),
+        "decision": decisions.get(name, "pending"),
+        "closed": True,
+        "end_at": product.get("end_at"),
+    }
+
+    deadline = (
+        datetime.fromisoformat(product["end_at"])
+        + timedelta(hours=48)
+    ).isoformat(timespec="seconds")
 
     return render_template(
         "auction/end.html",
         product=product,
+        auction=auction,
         bids=bids,
-        highest_bid=max(amounts, default=0),
-        bid_count=6 if name == "닌텐도 스위치 라이트" else len(bids),
-        bidder_count=len(set(bid["user"] for bid in bids)),
-        recent_price="15만~18만원" if name == "닌텐도 스위치 라이트" else "정보 없음",
+        deadline=deadline,
     )
-
 
 # 더미 데이터나 POST 처리가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
@@ -495,6 +507,108 @@ for path, endpoint, template in SCREENS:
 
 app.add_url_rule("/product/reserve", "product_reserve", product_reserve, methods=["POST"])
 app.add_url_rule("/product/like", "product_like", product_like, methods=["POST"])
+
+@app.route("/auction/decide", methods=["POST"])
+def auction_decide():
+    name = request.form.get("name", "")
+    decision = request.form.get("decision", "")
+    product = _find_product(name)
+
+    if not session.get("id"):
+        return redirect(url_for("auth_login"))
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    if session.get("id") != product["seller"]:
+        flash("판매자만 거래를 결정할 수 있어요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    decisions = session.get("auction_decisions", {})
+
+    if decisions.get(name, "pending") != "pending":
+        flash("이미 결정된 경매예요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if decision not in ("accepted", "rejected"):
+        flash("올바른 거래 상태를 선택해 주세요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if decision == "accepted" and int(product["price"]) == 0:
+        flash("받은 제안이 없어요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    decisions[name] = decision
+    session["auction_decisions"] = decisions
+
+    if decision == "accepted":
+        product["sale_status"] = "hold"
+        flash("거래가 확정됐어요.")
+    else:
+        flash("이번 제안으로는 거래하지 않아요.")
+
+    return redirect(url_for("auction_end", name=name))
+
+@app.route("/auction/reopen", methods=["POST"])
+def auction_reopen():
+    name = request.form.get("name", "")
+    mode = request.form.get("mode", "")
+    product = _find_product(name)
+
+    if not session.get("id"):
+        return redirect(url_for("auth_login"))
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    decisions = session.get("auction_decisions", {})
+
+    if session.get("id") != product["seller"] or decisions.get(name) != "rejected":
+        flash("다시 올릴 수 없는 경매예요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if mode == "bid":
+        duration_days = _int(request.form.get("duration_days"))
+
+        if duration_days not in (1, 3, 5, 7):
+            flash("제안 받는 기간을 골라 주세요.", "error")
+            return redirect(url_for("auction_end", name=name))
+
+        product.update(
+            price=0,
+            bid_count=0,
+            end_at=_ends_in(days=duration_days),
+            closed=False,
+            sale_status="sale",
+        )
+
+        decisions[name] = "pending"
+        session["auction_decisions"] = decisions
+
+        flash("다시 제안을 받기 시작했어요.")
+        return redirect(url_for("auction_detail", name=name))
+
+    elif mode == "fixed":
+        price = request.form.get("price", "")
+
+        if not price.isdecimal():
+            flash("가격을 숫자로 입력해 주세요.", "error")
+            return redirect(url_for("auction_end", name=name))
+
+        product.update(
+            kind="fixed",
+            price=int(price),
+            sale_status="sale",
+        )
+
+        decisions.pop(name, None)
+        session["auction_decisions"] = decisions
+
+        flash("가격을 정해서 다시 올렸어요.")
+        return redirect(url_for("product_detail", name=name))
+
+    flash("올바른 판매 방식을 선택해 주세요.", "error")
+    return redirect(url_for("auction_end", name=name))
 
 @app.route("/auction/bid", methods=["POST"])
 def auction_bid():
