@@ -106,27 +106,4 @@
       }
     });
   }
-
-  // 내 찜 탭: 찜 해제 시 카드 제거 및 카운트 갱신
-  const likeGrid = document.getElementById('likeGrid');
-  const likeEmpty = document.getElementById('likeEmpty');
-  const likeCountEl = document.getElementById('count-likes');
-
-  if (likeGrid) {
-    likeGrid.addEventListener('submit', (e) => {
-      const form = e.target.closest('[data-unlike-form]');
-      if (!form) return;
-      e.preventDefault();
-
-      const card = form.closest('.slip');
-      if (card) card.remove();
-
-      const remaining = likeGrid.querySelectorAll('.slip').length;
-      if (likeCountEl) likeCountEl.textContent = String(remaining);
-      if (remaining === 0) {
-        likeGrid.hidden = true;
-        if (likeEmpty) likeEmpty.hidden = false;
-      }
-    });
-  }
 })();
