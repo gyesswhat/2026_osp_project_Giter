@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+{% from "components/_product_card.html" import product_card, won %}
+{% from "components/_form_fields.html" import button %}
+{% set active_tab = 'my' %}
+
+{% block title %}마이페이지 | BoughtIT{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/my.css') }}">{% endblock %}
+
+{% block content %}
+  {# BE 연동 전 단독 렌더링을 위한 기본 더미 데이터 (BE에서 값을 넘기면 그 값을 우선 사용) #}
+  {% set current_id = (user.id if user is defined and user and user.id is defined else none) or session.get('id') or 'ewhain_sw' %}
+  {% set current_email = (user.email if user is defined and user and user.email is defined else none) or 'ewhain_sw@ewhain.net' %}
+
+  {# schema.dbml reservations 테이블 규격 기준 더미 데이터 #}
+  {% set default_deals = [
+    {
+      'id': 'B-1013-0042',
+      'product_name': '로지텍 K380 무선 키보드',
+      'wanted_id': none,
+      'seller': 'ewhain_sw',
+      'buyer': 'pear_blossom',
+      'source': 'reserve',
+      'place': '아산공학관 1층',
+      'meet_at': '2026-10-13T15:00:00+09:00',
+      'price': 22000,
+      'state': 'pending'
+    },
+    {
+      'id': 'B-1012-0039',
+      'product_name': '컴퓨터구조 및 설계 5판',
+      'wanted_id': none,
+      'seller': 'baekkot21',
+      'buyer': 'ewhain_sw',
+      'source': 'reserve',
+      'place': 'ECC 앞',
+      'meet_at': '2026-10-12T13:00:00+09:00',
+      'price': 18000,
+      'state': 'confirmed'
+    },
+    {
+      'id': 'B-1005-0031',
+      'product_name': '전기 주전자 1L',
+      'wanted_id': none,
+      'seller': 'ehouse_tea',
+      'buyer': 'ewhain_sw',
+      'source': 'reserve',
+      'place': '이하우스 로비',
+      'meet_at': '2026-10-05T18:30:00+09:00',
+      'price': 8000,
+      'state': 'done'
+    }
+  ] %}
+
+  {# schema.dbml products + auctions 규격 기준 더미 데이터 #}
+  {% set default_my_products = [
+    {
+      'name': '로지텍 K380 무선 키보드',
+      'price': 22000,
+      'address': '아산공학관',
+      'likes': 9,
+      'sale_status': 'sale',
+      'kind': 'fixed'
+    },
+    {
+      'name': '접이식 독서대',
+      'price': 6000,
+      'address': '중앙도서관',
+      'likes': 3,
+      'sale_status': 'sale',
+      'kind': 'fixed'
+    },
+    {
+      'name': '이케아 스탠드 조명',
+      'price': 0,
+      'address': '한우리집',
+      'likes': 2,
+      'sale_status': 'sale',
+      'kind': 'bid',
+      'bid_count': 0,
+      'end_at': '2026-11-28T18:00:00+09:00',
+      'closed': false
+    },
+    {
+      'name': '닌텐도 스위치 라이트',
+      'price': 165000,
+      'address': 'ECC',
+      'likes': 14,
+      'sale_status': 'sale',
+      'kind': 'bid',
+      'bid_count': 6,
+      'closed': true
+    }
+  ] %}
+
+  {# schema.dbml wanted_posts 및 wanted/detail.html 규격 기준 더미 데이터 #}
+  {% set default_my_wanted = [
+    {
+      'id': '1',
+      'title': '운영체제 10판 구해요',
+      'budget': 20000,
+      'needed_by': '2026-11-10',
+      'state': 'open',
+      'picked_offer_id': none,
+      'offer_count': 4
+    },
+    {
+      'id': '2',
+      'title': '공학용 계산기 카시오 fx-570',
+      'budget': 15000,
+      'needed_by': '2026-11-06',
+      'state': 'open',
+      'picked_offer_id': none,
+      'offer_count': 0
+    },
+    {
+      'id': '6',
+      'title': '토익 LC 1000제',
+      'budget': 8000,
+      'needed_by': '2026-11-01',
+      'state': 'done',
+      'picked_offer_id': '1',
+      'offer_count': 3
+    }
+  ] %}
+
+  {% set default_liked_products = [
+    {
+      'name': '컴퓨터구조 및 설계 5판',
+      'price': 18000,
+      'address': 'ECC 앞',
+      'likes': 12,
+      'sale_status': 'sale',
+      'kind': 'fixed'
+    },
+    {
+      'name': '이화 과잠 M 사이즈',
+      'price': 25000,
+      'address': '학생문화관',
+      'likes': 18,
+      'sale_status': 'hold',
+      'kind': 'fixed'
+    },
+    {
+      'name': '기숙사용 미니 냉장고',
+      'price': 40000,
+      'address': '한우리집',
+      'likes': 24,
+      'sale_status': 'sale',
+      'kind': 'fixed'
+    },
+    {
+      'name': '필름 카메라 올림푸스 뮤2',
+      'price': 120000,
+      'address': '조형예술관',
+      'likes': 20,
+      'sale_status': 'sale',
+      'kind': 'bid',
+      'bid_count': 12,
+      'end_at': '2026-11-27T14:30:00+09:00',
+      'closed': false
+    }
+  ] %}
+
+  {% set deal_items = deals if deals is defined else default_deals %}
+  {% set mine_items = my_products if my_products is defined else default_my_products %}
+  {% set wanted_items = my_wanted if my_wanted is defined else (wanted_products if wanted_products is defined else default_my_wanted) %}
+  {% set like_items = liked_products if liked_products is defined else default_liked_products %}
+
+  {% set req_tab = request.args.get('tab', 'deals') %}
+  {% set current_tab = req_tab if req_tab in ['deals', 'mine', 'wanted', 'likes'] else 'deals' %}
+
+  {% set ns = namespace(active=0, done=0) %}
+  {% for d in deal_items %}
+    {% if d.state == 'done' %}
+      {% set ns.done = ns.done + 1 %}
+    {% else %}
+      {% set ns.active = ns.active + 1 %}
+    {% endif %}
+  {% endfor %}
+
+  {% set state_labels = {
+    'pending': '수락 대기',
+    'confirmed': '약속 확정',
+    'done': '거래 완료',
+    'rejected': '거절함'
+  } %}
+
+  {# 프로필 상단 패널 #}
+  <div class="panel flex flex-wrap items-center gap-4 p-4 sm:gap-5 sm:p-6">
+    <span class="ph relative h-14 w-14 shrink-0 rounded-full text-2xl sm:h-16 sm:w-16 sm:text-3xl">
+      <span class="center" aria-hidden="true">🌼</span>
+    </span>
+    <div class="min-w-0 flex-1">
+      <h1 class="text-xl font-extrabold tracking-tight sm:text-2xl">{{ current_id }}</h1>
+      <p class="truncate font-mono text-sm text-muted">{{ current_email }}</p>
+    </div>
+    {{ button('로그아웃', variant='outline', href=url_for('auth_logout'), class='shrink-0') }}
+  </div>
+
+  {# 마이페이지 구분 탭: 약속 / 내 상품 / 내 구해요 / 내 찜 #}
+  <div id="myTabs" class="mt-8 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-dashed border-muted" role="tablist" aria-label="마이페이지 구분">
+    {% set tab_defs = [
+      ('deals', '약속', ns.active),
+      ('mine', '내 상품', mine_items | length),
+      ('wanted', '내 구해요', wanted_items | length),
+      ('likes', '내 찜', like_items | length)
+    ] %}
+    {% for key, label, cnt in tab_defs %}
+      {% set is_on = (current_tab == key) %}
+      <button type="button"
+              role="tab"
+              id="mytab-{{ key }}"
+              aria-selected="{{ 'true' if is_on else 'false' }}"
+              aria-controls="tab-{{ key }}"
+              data-mytab="{{ key }}"
+              class="shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-[15px] font-semibold sm:px-4 sm:text-[17px] {{ 'border-brand text-brandink' if is_on else 'border-transparent text-muted hover:text-ink' }}">
+        {{ label }}<span class="num ml-1.5" id="count-{{ key }}">{{ cnt }}</span>
+      </button>
+    {% endfor %}
+  </div>
+
+  {# 1. 약속 탭 #}
+  <div id="tab-deals" role="tabpanel" aria-labelledby="mytab-deals" class="pt-6"{{ ' hidden' if current_tab != 'deals' }}>
+    <div id="dealFilter" class="flex flex-wrap gap-2" role="group" aria-label="약속 구분">
+      <button type="button" class="chip" data-dealview="active" aria-pressed="true">
+        진행 중<span class="num ml-1.5" id="dealActiveCount">{{ ns.active }}</span>
+      </button>
+      <button type="button" class="chip" data-dealview="done" aria-pressed="false">
+        거래 완료<span class="num ml-1.5" id="dealDoneCount">{{ ns.done }}</span>
+      </button>
+    </div>
+
+    <div id="dealGrid"
+         data-chat-url="{{ url_for('chat_room') }}"
+         class="mt-6 grid items-start gap-6 md:grid-cols-2 lg:grid-cols-3"{{ ' hidden' if ns.active == 0 }}>
+      {% for d in deal_items %}
+        {% set is_done = (d.state == 'done') %}
+        {% set is_seller = (d.seller == current_id) or (d.seller == '나') %}
+        {% set d_no = d.id if (d.id is defined and d.id) else (d.no if d.no is defined else '') %}
+        {% set d_kind = d.kind if (d.kind is defined and d.kind) else ('받은 신청' if is_seller else '보낸 신청') %}
+        {% set d_title = d.product_name if (d.product_name is defined and d.product_name) else (d.wanted_title if (d.wanted_title is defined and d.wanted_title) else (d.product if d.product is defined else '구해요 거래')) %}
+        {% if d.product_name is defined and d.product_name %}
+          {% set d_href = url_for('product_detail', name=d.product_name) %}
+        {% elif d.wanted_id is defined and d.wanted_id %}
+          {% set d_href = url_for('wanted_detail', id=d.wanted_id) %}
+        {% elif d.product is defined and d.product %}
+          {% set d_href = url_for('product_detail', name=d.product) %}
+        {% else %}
+          {% set d_href = url_for('wanted_list') %}
+        {% endif %}
+        {% set d_place = d.place if (d.place is defined and d.place) else '채팅에서 정해요' %}
+        {% set raw_when = (d.meet_at if (d.meet_at is defined and d.meet_at) else (d.when if (d.when is defined and d.when) else '')) | string %}
+        {% if 'T' in raw_when and (raw_when | length) >= 16 %}
+          {% set d_when = (raw_when[:10] | replace('-', '.')) ~ ' ' ~ raw_when[11:16] %}
+        {% elif raw_when %}
+          {% set d_when = raw_when %}
+        {% else %}
+          {% set d_when = '채팅에서 정해요' %}
+        {% endif %}
+
+        <article class="slip min-w-0 px-5 pt-5" data-deal-card data-deal-id="{{ d_no }}" data-deal-state="{{ d.state }}"{{ ' hidden' if is_done }}>
+          <p class="flex justify-between gap-3 text-xs text-muted">
+            <span>{{ d_kind }}</span>
+            <span class="font-mono">{{ d_no }}</span>
+          </p>
+          <h2 class="mt-1.5 text-lg font-extrabold leading-snug tracking-tight">
+            <a href="{{ d_href }}" class="hover:text-brandink">{{ d_title }}</a>
+          </h2>
+          <p class="mt-0.5 text-sm font-semibold text-brandink" data-deal-state-text>{{ state_labels.get(d.state, d.state) }}</p>
+
+          <div class="tear mt-4 space-y-2 pt-4 text-sm">
+            <div class="row"><span class="shrink-0 font-semibold text-stamp">판매자</span><span class="leader"></span><span class="truncate">{{ '나' if is_seller else d.seller }}</span></div>
+            <div class="row"><span class="shrink-0 font-semibold text-brandink">구매자</span><span class="leader"></span><span class="truncate">{{ d.buyer if is_seller else '나' }}</span></div>
+            <div class="row"><span class="shrink-0 text-muted">장소</span><span class="leader"></span><span class="truncate">{{ d_place }}</span></div>
+            <div class="row"><span class="shrink-0 text-muted">일시</span><span class="leader"></span><span class="shrink-0 font-mono">{{ d_when }}</span></div>
+          </div>
+
+          <div class="tear row mt-4 pt-4">
+            <span class="shrink-0 font-semibold">가격</span><span class="leader"></span>
+            <span class="num shrink-0 text-xl text-brandink">{{ won(d.price) }}</span>
+          </div>
+
+          <div class="tear mt-4 pb-5 pt-4" data-deal-foot>
+            {% if d.state == 'pending' %}
+              {% if is_seller %}
+                <div class="flex gap-2">
+                  {{ button('수락', variant='primary', class='flex-1', attrs={'data-accept': ''}) }}
+                  {{ button('거절', variant='quiet', class='flex-1', attrs={'data-reject': ''}) }}
+                </div>
+              {% else %}
+                <p class="text-sm text-muted">판매자의 수락을 기다리고 있어요.</p>
+              {% endif %}
+            {% elif d.state == 'confirmed' %}
+              <div class="flex items-center justify-between gap-3">
+                {{ button('채팅 열기', variant='outline', href=url_for('chat_room')) }}
+                <span class="stamp mr-2">약속 확정</span>
+              </div>
+            {% elif d.state == 'rejected' %}
+              <p class="text-sm text-muted">신청을 거절했어요.</p>
+            {% else %}
+              {% if not is_seller and (d.product_name or d.product) %}
+                <div class="flex items-center justify-between gap-3">
+                  {{ button('리뷰 쓰기', variant='outline', href=url_for('review_new', name=d_title)) }}
+                  <span class="stamp mr-2">BOUGHT IT</span>
+                </div>
+              {% else %}
+                <div class="flex justify-end">
+                  <span class="stamp mr-2">BOUGHT IT</span>
+                </div>
+              {% endif %}
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <p id="dealEmpty" class="panel mt-6 p-8 text-center text-muted"{{ ' hidden' if ns.active > 0 }}>
+      진행 중인 약속이 없어요. 상품 상세에서 약속을 신청해 보세요.
+    </p>
+  </div>
+
+  {# 2. 내 상품 탭 #}
+  <div id="tab-mine" role="tabpanel" aria-labelledby="mytab-mine" class="pt-6"{{ ' hidden' if current_tab != 'mine' }}>
+    <div id="mineList" class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4"{{ ' hidden' if not mine_items }}>
+      {% for p in mine_items %}
+        {% call product_card(p) %}
+          <div class="!mt-auto pt-2">
+            {% if p.get('kind') == 'bid' %}
+              {% if p.get('closed') %}
+                {{ button('제안 결과 보기', variant='outline', href=url_for('auction_end', name=p.name), class='w-full py-1.5') }}
+              {% else %}
+                {{ button('제안 현황 보기', variant='outline', href=url_for('auction_detail', name=p.name), class='w-full py-1.5') }}
+              {% endif %}
+            {% else %}
+              {{ button('관리하기', variant='outline', href=url_for('my_manage', name=p.name), class='w-full py-1.5') }}
+            {% endif %}
+          </div>
+        {% endcall %}
+      {% endfor %}
+    </div>
+    <p id="mineEmpty" class="panel p-8 text-center text-muted"{{ ' hidden' if mine_items }}>
+      아직 내놓은 상품이 없어요. 위의 상품 등록으로 첫 상품을 올려 보세요.
+    </p>
+  </div>
+
+  {# 3. 내 구해요 탭 #}
+  <div id="tab-wanted" role="tabpanel" aria-labelledby="mytab-wanted" class="pt-6"{{ ' hidden' if current_tab != 'wanted' }}>
+    <div id="myWantedList" class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4"{{ ' hidden' if not wanted_items }}>
+      {% for w in wanted_items %}
+        {% set w_id = w.id if (w.id is defined and w.id is not none) else none %}
+        {% set w_title = w.title if (w.title is defined and w.title) else (w.name if w.name is defined else '') %}
+        {% set w_budget = w.budget if (w.budget is defined and w.budget is not none) else (w.price if w.price is defined else 0) %}
+        {% set w_status_raw = w.state if (w.state is defined and w.state) else (w.sale_status if w.sale_status is defined else 'open') %}
+        {% set w_picked_id = w.picked_offer_id if w.picked_offer_id is defined else none %}
+        {% set w_is_done = (w_status_raw == 'done') or (w_picked_id is not none) or (w.closed is defined and w.closed) %}
+        {% set w_offers = w.offer_count if (w.offer_count is defined and w.offer_count is not none) else (w.offers if (w.offers is defined and w.offers is not none) else 0) %}
+        {% set raw_needed = (w.needed_by if (w.needed_by is defined and w.needed_by) else '') | string %}
+        {% if w.when is defined and w.when %}
+          {% set w_when = w.when %}
+        {% elif w.due_text is defined and w.due_text %}
+          {% set w_when = w.due_text %}
+        {% elif (raw_needed | length) >= 10 %}
+          {% set w_when = (raw_needed[5:7] | int) ~ '.' ~ raw_needed[8:10] ~ '까지' %}
+        {% elif w.address is defined and w.address %}
+          {% set w_when = w.address %}
+        {% else %}
+          {% set w_when = '' %}
+        {% endif %}
+        {% set w_src = w.image if (w.image is defined and w.image) else (url_for('static', filename='uploads/' ~ w.img_path) if (w.img_path is defined and w.img_path) else none) %}
+        {% set w_href = url_for('wanted_detail', id=w_id) if w_id is not none else url_for('wanted_detail') %}
+
+        <article class="slip min-w-0">
+          <a href="{{ w_href }}" class="block" aria-label="{{ w_title }} 상세 보기">
+            <div class="ph relative aspect-square max-w-full overflow-hidden">
+              {%- if w_src %}
+                <img src="{{ w_src }}" alt="" loading="lazy"
+                     class="h-full w-full object-cover {{ 'opacity-50' if w_is_done }}">
+              {%- else %}
+                <span class="center text-sm text-muted">이미지 없음</span>
+              {%- endif %}
+              {%- if w_is_done %}
+                <span class="tag-sale absolute bottom-2.5 left-2.5">구했어요</span>
+              {%- else %}
+                <span class="tag-hold absolute bottom-2.5 left-2.5">구하는 중</span>
+              {%- endif %}
+            </div>
+          </a>
+          <div class="space-y-1.5 p-3">
+            <h3 class="break-keep font-semibold leading-snug">
+              <a href="{{ w_href }}" class="hover:text-brandink">{{ w_title }}</a>
+            </h3>
+            <div class="row text-sm">
+              <span class="shrink-0 whitespace-nowrap text-muted">예산</span><span class="leader"></span>
+              <span class="num shrink-0 whitespace-nowrap text-[15px] text-brandink">{{ won(w_budget) }}까지</span>
+            </div>
+            <p class="flex justify-between gap-2 text-xs text-muted">
+              <span class="truncate font-mono">{{ w_when }}</span>
+              <span class="shrink-0 whitespace-nowrap font-mono">제안 {{ w_offers }}</span>
+            </p>
+            <div class="!mt-auto pt-2">
+              {% if w_is_done %}
+                {{ button('채택 내역 보기', variant='outline', href=w_href, class='w-full py-1.5') }}
+              {% else %}
+                {{ button('제안 현황 보기', variant='outline', href=w_href, class='w-full py-1.5') }}
+              {% endif %}
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    <p id="myWantedEmpty" class="panel p-8 text-center text-muted"{{ ' hidden' if wanted_items }}>
+      아직 등록한 구해요 글이 없어요. 구해요 탭에서 찾는 물건을 올려 보세요.
+    </p>
+  </div>
+
+  {# 4. 내 찜 탭 #}
+  <div id="tab-likes" role="tabpanel" aria-labelledby="mytab-likes" class="pt-6"{{ ' hidden' if current_tab != 'likes' }}>
+    <div id="likeGrid" class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4"{{ ' hidden' if not like_items }}>
+      {% for p in like_items %}
+        {% call product_card(p) %}
+          <form method="post" action="{{ url_for('product_like') }}" class="!mt-0 absolute right-2 top-2 z-10" data-unlike-form>
+            <input type="hidden" name="name" value="{{ p.name }}">
+            <input type="hidden" name="next" value="{{ url_for('my_index', tab='likes') }}">
+            <button type="submit"
+                    aria-pressed="true"
+                    aria-label="{{ p.name }} 찜 해제"
+                    class="flex h-9 w-9 items-center justify-center rounded-full bg-bg text-lg leading-none text-stamp transition-transform hover:scale-105">♥</button>
+          </form>
+        {% endcall %}
+      {% endfor %}
+    </div>
+    <p id="likeEmpty" class="panel p-8 text-center text-muted"{{ ' hidden' if like_items }}>
+      찜한 물건이 없어요. 상품 목록에서 ♡를 눌러 담아 보세요.
+    </p>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/my.js') }}"></script>
+{% endblock %}

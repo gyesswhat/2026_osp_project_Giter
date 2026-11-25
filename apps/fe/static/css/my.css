@@ -1,0 +1,36 @@
+/* 마이페이지(templates/my/index.html) 전용 스타일 */
+
+/* 1. 모바일 2열 카드에서 가격·예산 줄이 두 줄로 갈라지지 않고 한 줄에 들어가도록 간격 조정 */
+#mineList .row,
+#myWantedList .row,
+#likeGrid .row {
+  gap: 0.25rem;
+}
+
+#myWantedList .row > .leader {
+  min-width: 0.5rem;
+}
+
+@media (max-width: 639px) {
+  #mineList .row .num,
+  #myWantedList .row .num,
+  #likeGrid .row .num {
+    font-size: 0.875rem;
+  }
+}
+
+/* 2. 같은 줄에 놓인 카드들의 높이와 하단 버튼 위치를 수평으로 정렬 */
+#mineList .slip,
+#myWantedList .slip,
+#likeGrid .slip {
+  display: flex;
+  flex-direction: column;
+}
+
+#mineList .slip > div,
+#myWantedList .slip > div,
+#likeGrid .slip > div {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
