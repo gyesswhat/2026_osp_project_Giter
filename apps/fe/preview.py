@@ -149,7 +149,32 @@ def product_detail(name):
     product = _find_product(name)
     if product is None:
         abort(404)
-    return render_template("product/detail.html", product=product, liked=False)
+    return render_template("product/detail.html", product=product, liked=name in session.get("liked", []))
+
+
+def product_like():
+    """찜 토글 미리보기. BE product_like와 같은 흐름이고, 찜 목록은 세션에만 둔다 (DB에 저장하지 않음)"""
+    if not session.get("id"):
+        flash("찜하려면 로그인해 주세요.", "error")
+        return redirect(url_for("auth_login"))
+    name = request.form.get("name", "")
+    product = _find_product(name)
+    if product is None:
+        abort(404)
+    if product.get("seller") == session["id"]:
+        flash("내가 올린 상품은 찜할 수 없어요.", "error")
+        return redirect(url_for("product_detail", name=name))
+    liked = session.get("liked", [])
+    if name in liked:
+        liked.remove(name)
+        product["likes"] = max(0, product.get("likes", 0) - 1)
+        flash("찜을 취소했어요.")
+    else:
+        liked.append(name)
+        product["likes"] = product.get("likes", 0) + 1
+        flash("찜했어요.")
+    session["liked"] = liked
+    return redirect(url_for("product_detail", name=name))
 
 
 def auction_detail(name):
@@ -245,7 +270,7 @@ product_new.methods = ["GET", "POST"]
 
 # /product/<path:name>, /review/<path:name> 보다 먼저 잡히는 고정 경로.
 # 이 이름의 상품은 상세(상품·리뷰)로 갈 수 없어서 등록을 막는다
-RESERVED_NAMES = {"new", "reserve", "done"}
+RESERVED_NAMES = {"new", "reserve", "done", "like"}
 
 
 def review_new():
@@ -347,6 +372,7 @@ for path, endpoint, template in SCREENS:
 
 
 app.add_url_rule("/product/reserve", "product_reserve", product_reserve, methods=["POST"])
+app.add_url_rule("/product/like", "product_like", product_like, methods=["POST"])
 
 @app.route("/auction/bid", methods=["POST"])
 def auction_bid():
