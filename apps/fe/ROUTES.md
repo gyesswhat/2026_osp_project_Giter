@@ -34,9 +34,11 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 회원가입 | GET, POST | `/signup` | `auth_signup` | `auth/signup.html` | 화면 |
 | 로그아웃 | GET | `/logout` | `auth_logout` | (없음, 목록으로 redirect) | 미리보기 |
 | 채팅 | GET | `/chat` | `chat_room` | `chat/room.html` | 예정 |
-| 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 예정 |
-| 구해요 상세 | GET | `/wanted/detail` | `wanted_detail` | `wanted/detail.html` | 예정 |
-| 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 예정 |
+| 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 화면 |
+| 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 예정 (화면은 PR #67, BE는 501 스텁) |
+| 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 화면 |
+| 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 예정 |
+| 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 예정 |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
 | 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 예정 (BE 구현, 화면은 #31) |
@@ -138,6 +140,33 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 방금 등록한 리뷰 요약. BE는 `session['last_review']`에 상품명을 저장하고, 그 상품명으로 DB에서 리뷰를 읽어 `review`로 넘깁니다.
 - BE에서 리뷰 상세가 실제 데이터를 보여 주게 되면 `review_detail`로 바로 보내도 됩니다.
 
+### `wanted_list` `/wanted`
+- 로그인하지 않아도 볼 수 있습니다.
+- 쿼리: `category` all·book·digital·dorm·etc(기본 all), `state` all·open·done(기본 all), `page` 1부터
+  - 허용 값이 아닌 `category`·`state`는 all로 봅니다. `page`가 숫자가 아니거나 1 미만이면 1, 마지막 페이지를 넘으면 마지막 페이지입니다.
+- 템플릿에 넘길 값: `items`(현재 페이지 글 목록), `category`(현재 분류), `state`(현재 상태), `page`, `total_pages`(최소 1), `total`
+- `items`의 각 글: `id, writer, name, category, budget, condition, due_date, places, img_path, state, offers, when, date`
+  - `places`: 거래 장소(건물명) 리스트
+  - `offers`: 받은 제안 수(`offer_count`)
+  - `when`: 필요한 날. 예) `11.30까지`. `date`: 올린 날. 예) `2026.11.26`. 값이 없거나 형식이 틀리면 빈 문자열입니다
+- 최신순(`created_at` 내림차순)으로 한 페이지에 12개씩 보여 줍니다.
+- DB에 연결하지 못하면 빈 목록입니다.
+
+### `wanted_new` `/wanted/new`
+- 로그인 필요. 비로그인이면 flash 후 `auth_login`으로 redirect
+- GET: 넘기는 값 없음 (`form`, `errors`는 실패했을 때만)
+- POST `multipart/form-data`: `name, category, budget, condition, due_date, places, description, picture`
+  - `places`: 거래 장소. 여러 개를 같은 이름으로 보냅니다 (`request.form.getlist("places")`)
+  - `budget`: 쉼표가 있어도 됩니다. 1원 이상 정수
+  - `category`: 비어 있으면 `etc`로 저장합니다. `due_date`: `YYYY-MM-DD`, 오늘 포함 이후
+  - `description`, `picture`(JPG·PNG, 5MB 이하)는 선택입니다. `writer`는 받지 않고 `session['id']`를 씁니다
+- 성공: flash `글을 올렸어요.` 후 `wanted_list`로 redirect (상세 화면을 연결하면 `wanted_detail(id)`로 바꿉니다)
+- 실패: 같은 템플릿에 `form`(입력값 dict, `places`는 리스트), `errors`(필드별 메시지 dict)를 넘겨 400으로 다시 그림
+  - `errors` 키: `name, category, budget, condition, due_date, places, picture`
+- DB에 연결하지 못하면 flash `지금은 글을 저장할 수 없어요.` 후 같은 화면을 다시 보여 줍니다 (사진도 저장하지 않음)
+
+분류(`category`)와 상태(`condition`)는 코드값(book·digital·dorm·etc / like_new·light_use·any)으로 주고받고, 화면 문구(도서·전자기기·생활용품·기타 / 거의 새것만·사용감 조금·상태 상관없음)는 템플릿에서 바꿉니다.
+
 ### `auth_login` `/login`
 - POST: `user_id, password` → 성공하면 `session['id']`를 넣고 `product_list`로 redirect
 - 실패하면 flash 후 같은 화면
@@ -182,6 +211,8 @@ BE(`apps/be`)는 이 문서의 라우트 함수 이름과 경로를 그대로 �
 | 리뷰 상세 | 리뷰 목록으로 | `review_list` |
 | 리뷰 작성 | 폼, 취소 | `review_new` `review_list` |
 | 리뷰 등록 완료 | 상품 둘러보기, 리뷰 목록으로 | `product_list` `review_list` |
+| 구해요 목록 | 구해요 글쓰기, 글 카드(지금은 `id` 없이 호출, 상세 화면 연결 때 `id` 추가), 페이지 번호 | `wanted_new` `wanted_detail` `wanted_list` |
+| 구해요 글쓰기 | 폼, 취소 | `wanted_new` `wanted_list` |
 | 로그인 | 폼, 회원가입 | `auth_login` `auth_signup` |
 | 회원가입 | 폼, 로그인 | `auth_signup` `auth_login` |
 
