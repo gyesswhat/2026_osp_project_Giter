@@ -38,7 +38,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 상세 | GET | `/wanted/detail` | `wanted_detail` | `wanted/detail.html` | 예정 |
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 예정 |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
-| 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
+| 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 화면 |
 | 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 예정 (BE 구현, 화면은 #31) |
 | 가격 제안 | POST | `/auction/bid` | `auction_bid` | (redirect) | BE 구현 |
 | 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE는 501 스텁, #40에서 구현) |

@@ -422,6 +422,9 @@ def auth_signup():
 auth_login.methods = ["GET", "POST"]
 auth_signup.methods = ["GET", "POST"]
 
+def my_manage():
+    product = _find_product("로지텍 K380 무선 키보드")
+    return render_template("my/manage.html", product=product)
 
 # 더미 데이터나 POST 처리가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
@@ -435,6 +438,7 @@ CUSTOM_VIEWS = {
     "review_detail": review_detail,
     "auth_login": auth_login,
     "auth_signup": auth_signup,
+    "my_manage": my_manage,
 }
 
 

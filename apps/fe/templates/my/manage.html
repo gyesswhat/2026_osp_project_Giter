@@ -1,0 +1,155 @@
+{#
+내 상품 관리 (라우트: my_manage)
+
+BE 연동 예정:
+- product: 관리할 상품 정보
+- sale_status: sale | hold | done
+- name: 상품명
+- price: 가격
+- description: 상세 설명
+
+현재는 화면 마크업 및 판매 상태 선택 UI만 구현한다.
+실제 저장 요청과 권한 검증은 BE 연동 시 반영한다.
+#}
+
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button, input, textarea, chip_group %}
+{% set active_tab = 'my' %}
+
+{% set statuses = [
+('sale', '판매중'),
+('hold', '예약중'),
+('done', '거래 완료')
+] %}
+
+{% set p = product %}
+
+{% block title %}내 상품 관리 | BoughtIT{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+
+    <a href="{{ url_for('my_index') }}" class="text-sm text-muted hover:text-ink">
+        마이페이지로
+    </a>
+
+    <h1 class="page-title mt-4">내 상품 관리</h1>
+    <p class="mt-1 break-keep text-muted">
+        가격과 설명을 고치거나 판매 상태를 바꿀 수 있어요.
+    </p>
+
+    <form id="manageForm" class="panel mt-8 space-y-6 p-5 sm:p-8">
+
+        {# 관리할 상품 정보 #}
+        <div class="flex flex-wrap items-center gap-4 rounded bg-bg p-3">
+
+            <span class="ph relative h-14 w-14 shrink-0 overflow-hidden rounded-sm text-2xl">
+                {% if p.img_path %}
+                <img src="{{ url_for('static', filename='uploads/' ~ p.img_path) }}" alt="{{ p.name }}"
+                    class="h-full w-full object-cover">
+                {% else %}
+                <span class="center" aria-hidden="true">⌨️</span>
+                {% endif %}
+            </span>
+
+            <span class="min-w-0 flex-1">
+                <span class="block truncate font-semibold">
+                    {{ p.name }}
+                </span>
+                <span class="text-sm text-muted">
+                    찜 <span class="num">{{ p.likes }}</span>
+                </span>
+            </span>
+
+            {{ button(
+            '상품 페이지 보기',
+            variant='quiet',
+            href=url_for('product_detail', name=p.name),
+            class='shrink-0'
+            ) }}
+
+        </div>
+
+        {# 판매 상태 #}
+        <div>
+            {{ chip_group(
+            'sale_status',
+            statuses,
+            selected=p.sale_status,
+            label='판매 상태',
+            required=true
+            ) }}
+
+            <p id="manageStatusHint" class="help break-keep" aria-live="polite">
+                {% if p.sale_status == 'hold' %}
+                약속이 잡힌 상태예요. 새 신청은 받지 않아요.
+                {% elif p.sale_status == 'done' %}
+                거래가 끝났어요. BOUGHT IT 도장이 찍히고 상품 목록에서 내려가요.
+                {% else %}
+                구매자가 약속을 신청할 수 있어요.
+                {% endif %}
+            </p>
+        </div>
+
+        {# 상품명 #}
+        {{ input(
+        'name',
+        '상품명',
+        value=p.name,
+        attrs={'maxlength': 40}
+        ) }}
+
+        {# 가격 #}
+        {{ input(
+        'price',
+        '가격',
+        value="{:,}".format(p.price | int), suffix='원',
+        class='max-w-xs',
+        attrs={'inputmode': 'numeric', 'autocomplete': 'off'}
+        ) }}
+
+        {# 상세 설명 #}
+        {{ textarea(
+        'description',
+        '상세 설명',
+        value=p.description,
+        rows=5,
+        attrs={'maxlength': 1000}
+        ) }}
+
+        {# 하단 버튼 #}
+        <div class="tear flex flex-wrap items-center justify-end gap-2 pt-6">
+
+            <p id="manageMsg" class="mr-auto text-sm font-semibold text-brandink" hidden>
+            </p>
+
+            {{ button(
+            '취소',
+            variant='quiet',
+            href=url_for('my_index')
+            ) }}
+
+            {{ button('변경 내용 저장', type='button') }}
+
+        </div>
+
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    const statusGroup = document.getElementById('cg-sale_status');
+    const statusHint = document.getElementById('manageStatusHint');
+
+    const statusHints = {
+        sale: '구매자가 약속을 신청할 수 있어요.',
+        hold: '약속이 잡힌 상태예요. 새 신청은 받지 않아요.',
+        done: '거래가 끝났어요. BOUGHT IT 도장이 찍히고 상품 목록에서 내려가요.'
+    };
+
+    statusGroup.addEventListener('chipchange', (event) => {
+        const status = event.detail.values[0];
+        statusHint.textContent = statusHints[status];
+    });
+</script>
+{% endblock %}
