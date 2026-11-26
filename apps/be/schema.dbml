@@ -337,7 +337,7 @@ Table wanted_posts [headerColor: #FFB800] {
   description text [null, note: '설명. 언제까지 필요한지, 확인하고 싶은 점']
   img_path varchar [null, note: '참고 사진 파일명(선택). static/uploads/ 아래에 저장. FE 폼 필드 picture']
   state wanted_state [not null, default: 'open']
-  picked_offer_id varchar [null, ref: - offers.id, note: '글쓴이가 고른 제안. 고르면 state=done으로 바꾼다']
+  picked_offer_id varchar [null, ref: - offers.id, note: '글쓴이가 고른 제안. 고르면 state=done으로 바꾼다. 다시 고를 수 없다']
   offer_count integer [not null, default: 0, note: '받은 제안 수. 제안 등록 때 함께 갱신한다']
   created_at datetime [not null]
 
@@ -378,6 +378,7 @@ Table offers [headerColor: #FFB800] {
   price integer [not null, note: '제안 금액(원). wanted_posts.budget 이하']
   description varchar [null, note: '물건 상태. 예: 3장까지 연필 필기, 표지 깨끗']
   place building [null, note: '거래 가능한 건물']
+  img_path varchar [null, note: '제안 사진 파일명(선택). static/uploads/ 아래에 저장. FE 폼 필드 picture']
   created_at datetime [not null, note: '제안 시각']
 
   indexes {
@@ -390,7 +391,7 @@ Table offers [headerColor: #FFB800] {
     Firebase 경로: /offers/{wanted_id}/{id}
 
     - 제안 보내기 검증: 로그인 필요, 자기 글에는 제안 불가, state=open인 글만, 금액은 예산 이하.
-    - 제안 고르기: 글쓴이만 할 수 있다. wanted_posts.picked_offer_id와 state=done을 저장하고, 약속(reservations, source=offer)과 채팅방을 생성한다.
+    - 제안 고르기: 글쓴이만 할 수 있다. wanted_posts.picked_offer_id와 state=done만 저장한다. 약속(reservations)·채팅방(chat_rooms) 생성은 이번 범위에서 뺐다(채팅 구현 전). 다시 고르기는 없다.
     - 목록의 별점은 저장하지 않고 reviews에서 seller 기준 평균으로 계산한다.
   '''
 }
