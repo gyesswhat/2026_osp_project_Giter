@@ -37,8 +37,8 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 화면 |
 | 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 예정 (화면은 PR #67, BE는 501 스텁) |
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 화면 |
-| 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 예정 |
-| 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 예정 |
+| 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
+| 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
 | 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 예정 (BE 구현, 화면은 #31) |
@@ -166,6 +166,38 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - DB에 연결하지 못하면 flash `지금은 글을 저장할 수 없어요.` 후 같은 화면을 다시 보여 줍니다 (사진도 저장하지 않음)
 
 분류(`category`)와 상태(`condition`)는 코드값(book·digital·dorm·etc / like_new·light_use·any)으로 주고받고, 화면 문구(도서·전자기기·생활용품·기타 / 거의 새것만·사용감 조금·상태 상관없음)는 템플릿에서 바꿉니다.
+
+### `wanted_offer` `/wanted/offer`
+- 로그인 필요. 비로그인이면 flash `제안하려면 로그인해 주세요.` 후 `auth_login`으로 redirect
+- POST `multipart/form-data`: `wanted_id, price, description, place, picture`
+  - `price`: 필수. 쉼표가 있어도 됩니다. 1원 이상, 그 글의 `budget` 이하
+  - `place`: 선택. 그 글의 `places` 중 하나. 비어 있으면 빈 문자열로 저장합니다
+  - `description`, `picture`(JPG·PNG, 5MB 이하)는 선택입니다. `seller`는 받지 않고 `session['id']`를 씁니다
+- 검사 순서와 결과
+  1. `wanted_id`가 비었거나 형식이 틀리면(`/ . # $ [ ]` 포함) 404
+  2. DB에 연결하지 못하면 flash `지금은 제안을 저장할 수 없어요.`
+  3. 글이 없으면 404
+  4. 내 글이면 `내 글에는 제안할 수 없어요.`, `state`가 `open`이 아니면 `이미 구한 글이에요.`
+  5. 금액이 없거나 0 이하면 `제안 금액을 1원 이상으로 입력해 주세요.`, 예산 초과면 `예산 30,000원 이하로 제안할 수 있어요.`(예산을 천 단위 쉼표로)
+  6. 장소가 그 글의 `places`에 없으면 `거래 장소를 다시 골라 주세요.`
+  7. 사진 오류면 그 문구(`JPG, PNG 파일만 올릴 수 있어요.` 등)
+  - 404가 아닌 실패는 모두 flash(분류 `error`) 후 `wanted_detail(id=wanted_id)`로 redirect합니다. 실패가 여러 개면 앞 단계 문구 하나만 보입니다. 사진은 저장하지 않습니다
+- 성공: `/offers/{wanted_id}/{push id}`에 `seller, price, description, place, img_path, created_at`을 저장하고 글의 `offer_count`를 1 늘린 뒤, flash `제안을 보냈어요.` 후 `wanted_detail(id=wanted_id)`로 redirect
+- 상세 화면의 제안 폼: `<form method="post" action="{{ url_for('wanted_offer') }}" enctype="multipart/form-data">` 안에 `<input type="hidden" name="wanted_id" value="{{ post.id }}">`를 넣어 보냅니다.
+
+### `wanted_pick` `/wanted/pick`
+- 로그인 필요, 글쓴이만. 비로그인이면 flash `제안을 고르려면 로그인해 주세요.` 후 `auth_login`으로 redirect
+- POST: `wanted_id, offer_id`
+- 검사 순서와 결과
+  1. `wanted_id` 형식이 틀리면 404
+  2. DB에 연결하지 못하면 flash `지금은 저장할 수 없어요.`
+  3. 글이 없으면 404, 글쓴이가 아니면 403
+  4. `state`가 `open`이 아니면 `이미 제안을 고른 글이에요.`
+  5. `offer_id` 형식이 틀리거나 그 글이 받은 제안이 아니면 `제안을 찾을 수 없어요.`
+  - 404·403이 아닌 실패는 flash(분류 `error`) 후 `wanted_detail(id=wanted_id)`로 redirect합니다
+- 성공: 글의 `picked_offer_id`와 `state=done`**만** 저장하고, flash `제안을 골랐어요.` 후 `wanted_detail(id=wanted_id)`로 redirect
+  - 약속(reservations)·채팅방은 만들지 않습니다. 다시 고르기(취소)는 없습니다
+- 상세 화면의 고르기 폼: `<form method="post" action="{{ url_for('wanted_pick') }}">` 안에 `<input type="hidden" name="wanted_id" value="{{ post.id }}">`와 `<input type="hidden" name="offer_id" value="{{ offer.id }}">`를 넣어 보냅니다.
 
 ### `auth_login` `/login`
 - POST: `user_id, password` → 성공하면 `session['id']`를 넣고 `product_list`로 redirect
