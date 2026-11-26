@@ -1,4 +1,4 @@
-"""구해요 라우트: wanted_list, wanted_detail, wanted_new, wanted_offer
+"""구해요 라우트: wanted_list, wanted_detail, wanted_new, wanted_offer, wanted_pick
 
 wanted_detail은 아직 501을 반환하는 스텁이다(PR C에서 구현).
 """
@@ -270,6 +270,47 @@ def wanted_offer():
     # ponytail: 읽은 값 + 1을 저장하므로 두 명이 동시에 보내면 하나가 덮일 수 있다. 문제가 되면 transaction으로 바꾼다
     db.child("wanted").child(wanted_id).update({"offer_count": post.get("offer_count", 0) + 1})
     flash("제안을 보냈어요.")
+    return redirect(detail_url)
+
+
+@app.route("/wanted/pick", methods=["POST"])
+def wanted_pick():
+    """제안 고르기. 로그인 필요, 글쓴이만. POST: wanted_id, offer_id
+
+    picked_offer_id와 state=done만 저장한다. 약속·채팅방은 만들지 않고(겨레님 결정), 다시 고르기는 없다.
+    글이 없거나 id 형식이 틀리면 404, 글쓴이가 아니면 403. 그 밖의 실패는 flash 후 wanted_detail로 redirect한다.
+    """
+    user_id = session.get("id")
+    if user_id is None:
+        flash("제안을 고르려면 로그인해 주세요.", "error")
+        return redirect(url_for("auth_login"))
+
+    wanted_id = request.form.get("wanted_id", "")
+    if not is_valid_key(wanted_id):
+        abort(404)
+    detail_url = url_for("wanted_detail", id=wanted_id)
+
+    if db is None:
+        flash("지금은 저장할 수 없어요.", "error")
+        return redirect(detail_url)
+
+    post = get_wanted(wanted_id)
+    if post is None:
+        abort(404)
+    if post.get("writer") != user_id:
+        abort(403)
+    if post.get("state") != "open":
+        flash("이미 제안을 고른 글이에요.", "error")
+        return redirect(detail_url)
+
+    # 제안은 /offers/{wanted_id}/{offer_id}에서 찾으므로 다른 글의 제안 id는 여기서 걸린다
+    offer_id = request.form.get("offer_id", "")
+    if not is_valid_key(offer_id) or get_offer(wanted_id, offer_id) is None:
+        flash("제안을 찾을 수 없어요.", "error")
+        return redirect(detail_url)
+
+    db.child("wanted").child(wanted_id).update({"picked_offer_id": offer_id, "state": "done"})
+    flash("제안을 골랐어요.")
     return redirect(detail_url)
 
 

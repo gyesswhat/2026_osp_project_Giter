@@ -718,3 +718,129 @@ def test_offer_helpers(fake_env):
     assert wanted.get_wanted("w1") is None
     assert wanted.load_offers("w1") == []
     assert wanted.get_offer("w1", offer_id) is None
+
+
+# 7. 제안 고르기 (wanted_pick)
+def seed_pick_target(fake_db, **fields):
+    """로그인 사용자(tester)가 쓴 글 w1과 그 글에 달린 제안 하나. offer_id를 반환한다."""
+    fields.setdefault("writer", "tester")
+    seed_offer_target(fake_db, **fields)
+    return wanted.save_offer("w1", {"seller": "kim", "price": 25000, "description": "", "place": "ECC", "img_path": ""})
+
+
+def pick_form(offer_id, **overrides):
+    form = {"wanted_id": "w1", "offer_id": offer_id}
+    form.update(overrides)
+    return {key: value for key, value in form.items() if value is not None}
+
+
+def post_pick(form):
+    return client.post("/wanted/pick", data=form)
+
+
+def stored_post(fake_db, wanted_id="w1"):
+    return dict(fake_db.store["wanted"][wanted_id])
+
+
+def test_pick_requires_login(fake_env):
+    offer_id = seed_pick_target(fake_env)
+    logout()
+    response = post_pick(pick_form(offer_id))
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login"
+    assert last_flash() == ("error", "제안을 고르려면 로그인해 주세요.")
+    assert stored_post(fake_env)["state"] == "open"
+
+
+@pytest.mark.parametrize("wanted_id", [None, "", "a/b", "a.b", "a#b", "a$b", "a[b]", "nope"])
+def test_pick_bad_or_missing_wanted_is_404(fake_env, wanted_id):
+    offer_id = seed_pick_target(fake_env)
+    response = post_pick(pick_form(offer_id, wanted_id=wanted_id))
+    assert response.status_code == 404
+    assert stored_post(fake_env)["state"] == "open"
+
+
+def test_pick_bad_id_is_404_even_when_db_none():
+    wanted.db = None
+    assert post_pick(pick_form("o1", wanted_id="a/b")).status_code == 404
+
+
+def test_pick_db_none_flashes_and_redirects():
+    wanted.db = None
+    response = post_pick(pick_form("o1"))
+    assert response.status_code == 302
+    assert response.headers["Location"] == OFFER_DETAIL
+    assert last_flash() == ("error", "지금은 저장할 수 없어요.")
+
+
+def test_pick_not_writer_is_403(fake_env):
+    offer_id = seed_pick_target(fake_env, writer="owner")
+    before = stored_post(fake_env)
+    response = post_pick(pick_form(offer_id))
+    assert response.status_code == 403
+    assert stored_post(fake_env) == before
+
+
+def test_pick_already_done(fake_env):
+    offer_id = seed_pick_target(fake_env, state="done", picked_offer_id="old")
+    response = post_pick(pick_form(offer_id))
+    assert response.status_code == 302
+    assert response.headers["Location"] == OFFER_DETAIL
+    assert last_flash() == ("error", "이미 제안을 고른 글이에요.")
+    assert stored_post(fake_env)["picked_offer_id"] == "old"
+
+
+@pytest.mark.parametrize("offer_id", [None, "", "a/b", "a.b", "a#b", "a$b", "a[b]", "nope"])
+def test_pick_bad_or_missing_offer(fake_env, offer_id):
+    seed_pick_target(fake_env)
+    before = stored_post(fake_env)
+    response = post_pick(pick_form(offer_id))
+    assert response.status_code == 302
+    assert response.headers["Location"] == OFFER_DETAIL
+    assert last_flash() == ("error", "제안을 찾을 수 없어요.")
+    assert stored_post(fake_env) == before
+
+
+def test_pick_offer_of_another_post_fails(fake_env):
+    seed_pick_target(fake_env)
+    seed_wanted(fake_env, "w2", writer="tester")
+    other_offer_id = wanted.save_offer("w2", {"seller": "lee", "price": 5000})
+    before = stored_post(fake_env)
+    response = post_pick(pick_form(other_offer_id))
+    assert response.headers["Location"] == OFFER_DETAIL
+    assert last_flash() == ("error", "제안을 찾을 수 없어요.")
+    assert stored_post(fake_env) == before
+
+
+def test_pick_success_changes_only_pick_fields(fake_env):
+    offer_id = seed_pick_target(fake_env, offer_count=1)
+    before = stored_post(fake_env)
+    response = post_pick(pick_form(offer_id))
+    assert response.status_code == 302
+    assert response.headers["Location"] == OFFER_DETAIL
+    assert last_flash() == ("message", "제안을 골랐어요.")
+    assert stored_post(fake_env) == {**before, "picked_offer_id": offer_id, "state": "done"}
+    assert "reservations" not in fake_env.store
+    assert "chat_rooms" not in fake_env.store
+    assert set(fake_env.store) == {"wanted", "offers"}
+
+
+def test_pick_again_after_pick(fake_env):
+    offer_id = seed_pick_target(fake_env)
+    second_id = wanted.save_offer("w1", {"seller": "lee", "price": 20000})
+    post_pick(pick_form(offer_id))
+    response = post_pick(pick_form(second_id))
+    assert response.headers["Location"] == OFFER_DETAIL
+    assert last_flash() == ("error", "이미 제안을 고른 글이에요.")
+    assert stored_post(fake_env)["picked_offer_id"] == offer_id
+
+
+def test_offer_after_pick_is_rejected(fake_env):
+    offer_id = seed_pick_target(fake_env)
+    post_pick(pick_form(offer_id))
+    login("buyer")
+    response = post_offer(offer_form())
+    assert response.headers["Location"] == OFFER_DETAIL
+    assert last_flash() == ("error", "이미 구한 글이에요.")
+    assert len(saved_offers(fake_env)) == 1
+    assert offer_count(fake_env) == 0
