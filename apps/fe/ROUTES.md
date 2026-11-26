@@ -34,14 +34,18 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 회원가입 | GET, POST | `/signup` | `auth_signup` | `auth/signup.html` | 화면 |
 | 로그아웃 | GET | `/logout` | `auth_logout` | (없음, 목록으로 redirect) | 미리보기 |
 | 채팅 | GET | `/chat` | `chat_room` | `chat/room.html` | 예정 |
-| 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 예정 |
-| 구해요 상세 | GET | `/wanted/detail` | `wanted_detail` | `wanted/detail.html` | 예정 |
-| 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 예정 |
+| 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 화면 |
+| 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 예정 (화면은 PR #67, BE는 501 스텁) |
+| 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 화면 |
+| 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
+| 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 화면 |
-| 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 예정 (BE 구현, 화면은 #31) |
+| 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 화면 |
 | 가격 제안 | POST | `/auction/bid` | `auction_bid` | (redirect) | BE 구현 |
-| 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE는 501 스텁, #40에서 구현) |
+| 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE 구현, 화면은 #32) |
+| 경매 수락, 거절 | POST | `/auction/decide` | `auction_decide` | (redirect) | BE 구현 |
+| 경매 다시 올리기 | POST | `/auction/reopen` | `auction_reopen` | (redirect) | BE 구현 |
 
 예정 화면의 경로는 자리만 잡아 둔 것입니다. 상세 화면(구해요·경매)은 화면을 만들 때 위 규칙대로 경로 파라미터를 정해서 이 표를 고칩니다.
 
@@ -73,7 +77,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
   - `price`: `kind=fixed`일 때만 보냅니다. 숫자만 (쉼표 없음)
   - `duration`: 제안 받는 기간(일) `1` `3` `5` `7`. `kind=bid`일 때만 보냅니다 (schema.dbml `auctions.duration_days`)
   - 방식에 맞지 않는 칸은 화면에서 disabled로 바꿔 보내지 않습니다
-- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `상품을 등록했어요. N일 동안 제안을 받아요.`)
+- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `auction_detail`로 redirect + flash `상품을 등록했어요. N일 동안 제안을 받아요.`)
 - 실패: 같은 템플릿에 `form`(입력값), `errors`(필드별 메시지 dict)를 넘겨 다시 그림
 - 같은 상품명이 이미 있거나 `new` `reserve` `like` `done`이면 `errors['name']`
 - 방식·가격·기간 오류는 `errors['kind']`, `errors['price']`, `errors['duration']`
@@ -104,6 +108,32 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - POST: `name`(상품명), `price`(제안 금액. 쉼표가 있어도 됩니다)
 - 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
 - 그 외에는 `auction_detail`로 redirect + flash. 실패한 경우(본인 상품, 마감 후, `min_price` 미만)는 flash 분류가 `error`입니다
+
+### `auction_end` `/auction/end/<path:name>`
+- 로그인 필요. 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
+- 마감 전이면 `auction_detail`로 redirect
+- 마감 후 48시간 동안 판매자가 결정하지 않으면 `decision`을 `rejected`로 저장합니다 (화면을 열 때 판정)
+- 템플릿에 넘길 값
+  - `product`(dict): 상품. 판매자인지는 `session['id'] == product.seller`로 판단합니다
+  - `auction`(dict): `end_at`, `top_price`, `bid_count`, `duration_days`, `decision`(`pending` | `accepted` | `rejected`), `closed`(항상 `True`)
+  - `bids`(목록, 금액이 높은 순): `bidder`, `price`, `date`. `auction_detail`과 같은 모양입니다. 판매자에게는 첫 번째(최고 제안자)의 `bidder`만 아이디 전체를 넘깁니다
+  - `deadline`: 판매자가 결정할 수 있는 마지막 시각 (ISO 문자열, `end_at` + 48시간)
+
+### `auction_decide` `/auction/decide`
+- POST: `name`(상품명), `decision`(`accepted` 또는 `rejected`)
+- 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
+- 수락하면 `decision=accepted`, 상품의 `sale_status=hold`를 저장하고 `auction_end`로 redirect + flash
+- 거절하면 `decision=rejected`를 저장하고 `auction_end`로 redirect + flash
+- 채팅(`chat_room`)이 구현되면 수락한 뒤 채팅으로 이동하도록 바꿉니다
+- 실패한 경우(판매자가 아님, 마감 전, 이미 결정함, 결정 기한이 지남, 제안이 없는데 수락)는 `auction_end`로 redirect하고 flash 분류가 `error`입니다
+
+### `auction_reopen` `/auction/reopen`
+- POST: `name`(상품명), `mode`(`bid` 또는 `fixed`), `duration_days`(`mode=bid`일 때. `1` `3` `5` `7`), `price`(`mode=fixed`일 때. 숫자만)
+- 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
+- `decision=rejected`인 경매의 판매자만 쓸 수 있습니다
+- `mode=bid`: 제안을 모두 삭제하고 마감 시각을 다시 정한 뒤 `auction_detail`로 redirect + flash
+- `mode=fixed`: 상품을 `kind=fixed`로 바꾸고 `price`를 저장한 뒤 `product_detail`로 redirect + flash
+- 실패한 경우는 `auction_end`로 redirect하고 flash 분류가 `error`입니다
 
 ### `review_list` `/review`
 - 쿼리: `seller` 판매자 ID(있으면 그 판매자가 받은 리뷰만, 판매자 바 표시), `page` 페이지 번호
@@ -137,6 +167,65 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `review_done` `/review/done`
 - 방금 등록한 리뷰 요약. BE는 `session['last_review']`에 상품명을 저장하고, 그 상품명으로 DB에서 리뷰를 읽어 `review`로 넘깁니다.
 - BE에서 리뷰 상세가 실제 데이터를 보여 주게 되면 `review_detail`로 바로 보내도 됩니다.
+
+### `wanted_list` `/wanted`
+- 로그인하지 않아도 볼 수 있습니다.
+- 쿼리: `category` all·book·digital·dorm·etc(기본 all), `state` all·open·done(기본 all), `page` 1부터
+  - 허용 값이 아닌 `category`·`state`는 all로 봅니다. `page`가 숫자가 아니거나 1 미만이면 1, 마지막 페이지를 넘으면 마지막 페이지입니다.
+- 템플릿에 넘길 값: `items`(현재 페이지 글 목록), `category`(현재 분류), `state`(현재 상태), `page`, `total_pages`(최소 1), `total`
+- `items`의 각 글: `id, writer, name, category, budget, condition, due_date, places, img_path, state, offers, when, date`
+  - `places`: 거래 장소(건물명) 리스트
+  - `offers`: 받은 제안 수(`offer_count`)
+  - `when`: 필요한 날. 예) `11.30까지`. `date`: 올린 날. 예) `2026.11.26`. 값이 없거나 형식이 틀리면 빈 문자열입니다
+- 최신순(`created_at` 내림차순)으로 한 페이지에 12개씩 보여 줍니다.
+- DB에 연결하지 못하면 빈 목록입니다.
+
+### `wanted_new` `/wanted/new`
+- 로그인 필요. 비로그인이면 flash 후 `auth_login`으로 redirect
+- GET: 넘기는 값 없음 (`form`, `errors`는 실패했을 때만)
+- POST `multipart/form-data`: `name, category, budget, condition, due_date, places, description, picture`
+  - `places`: 거래 장소. 여러 개를 같은 이름으로 보냅니다 (`request.form.getlist("places")`)
+  - `budget`: 쉼표가 있어도 됩니다. 1원 이상 정수
+  - `category`: 비어 있으면 `etc`로 저장합니다. `due_date`: `YYYY-MM-DD`, 오늘 포함 이후
+  - `description`, `picture`(JPG·PNG, 5MB 이하)는 선택입니다. `writer`는 받지 않고 `session['id']`를 씁니다
+- 성공: flash `글을 올렸어요.` 후 `wanted_list`로 redirect (상세 화면을 연결하면 `wanted_detail(id)`로 바꿉니다)
+- 실패: 같은 템플릿에 `form`(입력값 dict, `places`는 리스트), `errors`(필드별 메시지 dict)를 넘겨 400으로 다시 그림
+  - `errors` 키: `name, category, budget, condition, due_date, places, picture`
+- DB에 연결하지 못하면 flash `지금은 글을 저장할 수 없어요.` 후 같은 화면을 다시 보여 줍니다 (사진도 저장하지 않음)
+
+분류(`category`)와 상태(`condition`)는 코드값(book·digital·dorm·etc / like_new·light_use·any)으로 주고받고, 화면 문구(도서·전자기기·생활용품·기타 / 거의 새것만·사용감 조금·상태 상관없음)는 템플릿에서 바꿉니다.
+
+### `wanted_offer` `/wanted/offer`
+- 로그인 필요. 비로그인이면 flash `제안하려면 로그인해 주세요.` 후 `auth_login`으로 redirect
+- POST `multipart/form-data`: `wanted_id, price, description, place, picture`
+  - `price`: 필수. 쉼표가 있어도 됩니다. 1원 이상, 그 글의 `budget` 이하
+  - `place`: 선택. 그 글의 `places` 중 하나. 비어 있으면 빈 문자열로 저장합니다
+  - `description`, `picture`(JPG·PNG, 5MB 이하)는 선택입니다. `seller`는 받지 않고 `session['id']`를 씁니다
+- 검사 순서와 결과
+  1. `wanted_id`가 비었거나 형식이 틀리면(`/ . # $ [ ]` 포함) 404
+  2. DB에 연결하지 못하면 flash `지금은 제안을 저장할 수 없어요.`
+  3. 글이 없으면 404
+  4. 내 글이면 `내 글에는 제안할 수 없어요.`, `state`가 `open`이 아니면 `이미 구한 글이에요.`
+  5. 금액이 없거나 0 이하면 `제안 금액을 1원 이상으로 입력해 주세요.`, 예산 초과면 `예산 30,000원 이하로 제안할 수 있어요.`(예산을 천 단위 쉼표로)
+  6. 장소가 그 글의 `places`에 없으면 `거래 장소를 다시 골라 주세요.`
+  7. 사진 오류면 그 문구(`JPG, PNG 파일만 올릴 수 있어요.` 등)
+  - 404가 아닌 실패는 모두 flash(분류 `error`) 후 `wanted_detail(id=wanted_id)`로 redirect합니다. 실패가 여러 개면 앞 단계 문구 하나만 보입니다. 사진은 저장하지 않습니다
+- 성공: `/offers/{wanted_id}/{push id}`에 `seller, price, description, place, img_path, created_at`을 저장하고 글의 `offer_count`를 1 늘린 뒤, flash `제안을 보냈어요.` 후 `wanted_detail(id=wanted_id)`로 redirect
+- 상세 화면의 제안 폼: `<form method="post" action="{{ url_for('wanted_offer') }}" enctype="multipart/form-data">` 안에 `<input type="hidden" name="wanted_id" value="{{ post.id }}">`를 넣어 보냅니다.
+
+### `wanted_pick` `/wanted/pick`
+- 로그인 필요, 글쓴이만. 비로그인이면 flash `제안을 고르려면 로그인해 주세요.` 후 `auth_login`으로 redirect
+- POST: `wanted_id, offer_id`
+- 검사 순서와 결과
+  1. `wanted_id` 형식이 틀리면 404
+  2. DB에 연결하지 못하면 flash `지금은 저장할 수 없어요.`
+  3. 글이 없으면 404, 글쓴이가 아니면 403
+  4. `state`가 `open`이 아니면 `이미 제안을 고른 글이에요.`
+  5. `offer_id` 형식이 틀리거나 그 글이 받은 제안이 아니면 `제안을 찾을 수 없어요.`
+  - 404·403이 아닌 실패는 flash(분류 `error`) 후 `wanted_detail(id=wanted_id)`로 redirect합니다
+- 성공: 글의 `picked_offer_id`와 `state=done`**만** 저장하고, flash `제안을 골랐어요.` 후 `wanted_detail(id=wanted_id)`로 redirect
+  - 약속(reservations)·채팅방은 만들지 않습니다. 다시 고르기(취소)는 없습니다
+- 상세 화면의 고르기 폼: `<form method="post" action="{{ url_for('wanted_pick') }}">` 안에 `<input type="hidden" name="wanted_id" value="{{ post.id }}">`와 `<input type="hidden" name="offer_id" value="{{ offer.id }}">`를 넣어 보냅니다.
 
 ### `auth_login` `/login`
 - POST: `user_id, password` → 성공하면 `session['id']`를 넣고 `product_list`로 redirect
@@ -182,6 +271,8 @@ BE(`apps/be`)는 이 문서의 라우트 함수 이름과 경로를 그대로 �
 | 리뷰 상세 | 리뷰 목록으로 | `review_list` |
 | 리뷰 작성 | 폼, 취소 | `review_new` `review_list` |
 | 리뷰 등록 완료 | 상품 둘러보기, 리뷰 목록으로 | `product_list` `review_list` |
+| 구해요 목록 | 구해요 글쓰기, 글 카드(지금은 `id` 없이 호출, 상세 화면 연결 때 `id` 추가), 페이지 번호 | `wanted_new` `wanted_detail` `wanted_list` |
+| 구해요 글쓰기 | 폼, 취소 | `wanted_new` `wanted_list` |
 | 로그인 | 폼, 회원가입 | `auth_login` `auth_signup` |
 | 회원가입 | 폼, 로그인 | `auth_signup` `auth_login` |
 

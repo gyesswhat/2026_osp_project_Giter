@@ -87,17 +87,7 @@ def product_new():
 
     # 경매 정보가 없는 경매 상품이 목록에 남지 않도록 경매 정보를 먼저 저장한다
     duration_days = to_int(form["duration"])
-    end_at = created_at + timedelta(days=duration_days)
-    save_auction(
-        {
-            "product_name": product["name"],
-            "duration_days": duration_days,
-            "end_at": end_at.isoformat(timespec="seconds"),
-            "top_price": 0,
-            "bid_count": 0,
-            "decision": "pending",
-        }
-    )
+    start_auction(product["name"], duration_days, created_at)
     save_product(product)
     flash(f"상품을 등록했어요. {duration_days}일 동안 제안을 받아요.")
     return redirect(url_for("auction_detail", name=product["name"]))
@@ -182,12 +172,14 @@ def validate_product_form(form, picture):
     if kind not in KINDS:
         errors["kind"] = "가격 정하는 방식을 골라 주세요."
     elif kind == "fixed":
-        price = to_int(form.get("price"))
-        if price is None or price <= 0:
-            errors["price"] = "가격을 0보다 큰 숫자로 입력해 주세요."
-    elif to_int(form.get("duration")) not in DURATION_DAYS:
+        price_error = validate_price(to_int(form.get("price")))
+        if price_error is not None:
+            errors["price"] = price_error
+    else:
         # kind=bid이면 가격 칸이 화면에 없으므로 price는 검사하지 않는다
-        errors["duration"] = "제안 받는 기간을 1일, 3일, 5일, 7일 중에서 골라 주세요."
+        duration_error = validate_duration(to_int(form.get("duration")))
+        if duration_error is not None:
+            errors["duration"] = duration_error
     if form.get("status") not in CONDITIONS:
         errors["status"] = "상품 상태를 골라 주세요."
     picture_error = validate_picture(picture)
@@ -205,6 +197,18 @@ def validate_name(name):
         return "상품명에는 . $ # [ ] 문자를 쓸 수 없어요."
     if get_product(name) is not None:
         return "같은 이름의 상품이 이미 있어요. 이름을 조금 바꿔 주세요."
+    return None
+
+
+def validate_price(price):
+    if price is None or price <= 0:
+        return "가격을 0보다 큰 숫자로 입력해 주세요."
+    return None
+
+
+def validate_duration(duration_days):
+    if duration_days not in DURATION_DAYS:
+        return "제안 받는 기간을 1일, 3일, 5일, 7일 중에서 골라 주세요."
     return None
 
 
@@ -276,6 +280,14 @@ def save_product(product):
     db.child("products").child(product_key(product["name"])).set(product)
 
 
+def update_product(name, changes):
+    """저장된 상품에서 changes의 필드만 바꾼다."""
+    if db is None:
+        find_product(name).update(changes)
+        return
+    db.child("products").child(product_key(name)).update(changes)
+
+
 def with_date(product):
     """FE가 쓰는 date(예: 2026.10.06)를 created_at에서 만들어 추가한다."""
     return {**product, "date": product["created_at"][:10].replace("-", ".")}
@@ -301,6 +313,21 @@ def save_auction(auction):
         PREVIEW_AUCTIONS[auction["product_name"]] = auction
         return
     db.child("auctions").child(product_key(auction["product_name"])).set(auction)
+
+
+def start_auction(name, duration_days, started_at):
+    """제안이 없는 경매 정보를 저장한다. 마감 시각은 started_at + duration_days이다 (schema.dbml auctions)"""
+    end_at = started_at + timedelta(days=duration_days)
+    save_auction(
+        {
+            "product_name": name,
+            "duration_days": duration_days,
+            "end_at": end_at.isoformat(timespec="seconds"),
+            "top_price": 0,
+            "bid_count": 0,
+            "decision": "pending",
+        }
+    )
 
 
 def is_closed(auction):
