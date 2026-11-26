@@ -172,7 +172,8 @@ def validate_wanted_form(form, picture):
     if post["category"] not in CATEGORIES:
         errors["category"] = "분류를 골라 주세요."
 
-    # 쉼표·공백만 지운다. "-5000"이 5000으로 통과하지 않도록 다른 문자는 지우지 않는다
+    # 공백은 여기 정규식이 지우고, 쉼표는 to_int가 지운다.
+    # "-5000"이 5000으로 통과하지 않도록 다른 문자는 지우지 않는다
     post["budget"] = to_int(re.sub(r"\s", "", form.get("budget", "")))
     if post["budget"] is None or post["budget"] <= 0:
         errors["budget"] = "예산은 1원 이상 올바른 금액으로 입력해 주세요."
