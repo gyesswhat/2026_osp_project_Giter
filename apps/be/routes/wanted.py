@@ -1,6 +1,6 @@
-"""구해요 라우트: wanted_list, wanted_detail, wanted_new
+"""구해요 라우트: wanted_list, wanted_detail, wanted_new, wanted_offer
 
-wanted_detail은 아직 501을 반환하는 스텁이다(PR B에서 구현).
+wanted_detail은 아직 501을 반환하는 스텁이다(PR C에서 구현).
 """
 
 import math
@@ -222,3 +222,110 @@ def validate_due_date(value):
 def save_wanted(post):
     """/wanted/{push id}에 저장하고 새 id를 반환한다. pyrebase 규칙대로 한 줄 체인으로 실행한다."""
     return db.child("wanted").push(post)["name"]
+
+
+# Firebase 키에 쓸 수 없는 문자. 이런 값이 child()에 들어가면 다른 경로를 가리키게 된다
+KEY_FORBIDDEN = re.compile(r"[/.#$\[\]]")
+
+
+@app.route("/wanted/offer", methods=["POST"])
+def wanted_offer():
+    """제안 보내기. 로그인 필요. POST(multipart/form-data): wanted_id, price, description, place, picture
+
+    글이 없거나 id 형식이 틀리면 404. 그 밖의 실패는 flash 후 wanted_detail로 redirect한다.
+    """
+    seller = session.get("id")
+    if seller is None:
+        flash("제안하려면 로그인해 주세요.", "error")
+        return redirect(url_for("auth_login"))
+
+    wanted_id = request.form.get("wanted_id", "")
+    if not is_valid_key(wanted_id):
+        abort(404)
+    detail_url = url_for("wanted_detail", id=wanted_id)
+
+    # get_wanted는 db가 없으면 None이라 404가 되므로, 저장 불가 안내를 먼저 확인한다
+    if db is None:
+        flash("지금은 제안을 저장할 수 없어요.", "error")
+        return redirect(detail_url)
+
+    post = get_wanted(wanted_id)
+    if post is None:
+        abort(404)
+
+    picture = request.files.get("picture")
+    offer, error = validate_offer_form(request.form, picture, post, seller)
+    if error is not None:
+        flash(error, "error")
+        return redirect(detail_url)
+
+    offer.update(
+        {
+            "seller": seller,
+            "img_path": save_picture(picture) if picture and picture.filename else "",
+            "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        }
+    )
+    save_offer(wanted_id, offer)
+    # ponytail: 읽은 값 + 1을 저장하므로 두 명이 동시에 보내면 하나가 덮일 수 있다. 문제가 되면 transaction으로 바꾼다
+    db.child("wanted").child(wanted_id).update({"offer_count": post.get("offer_count", 0) + 1})
+    flash("제안을 보냈어요.")
+    return redirect(detail_url)
+
+
+def validate_offer_form(form, picture, post, seller):
+    """제안 폼을 브리프 순서(3~7)대로 검증한다. (저장할 필드 dict, 첫 오류 문구 또는 None)을 반환한다."""
+    if post.get("writer") == seller:
+        return None, "내 글에는 제안할 수 없어요."
+    if post.get("state") != "open":
+        return None, "이미 구한 글이에요."
+
+    price = to_int(re.sub(r"\s", "", form.get("price", "")))
+    if price is None or price <= 0:
+        return None, "제안 금액을 1원 이상으로 입력해 주세요."
+    budget = post.get("budget", 0)
+    if price > budget:
+        return None, f"예산 {budget:,}원 이하로 제안할 수 있어요."
+
+    place = form.get("place", "").strip()
+    if place and place not in (post.get("places") or {}):
+        return None, "거래 장소를 다시 골라 주세요."
+
+    if picture and picture.filename:
+        picture_error = validate_picture(picture)
+        if picture_error is not None:
+            return None, picture_error
+
+    return {"price": price, "description": form.get("description", "").strip(), "place": place}, None
+
+
+def is_valid_key(key):
+    """child()에 넣어도 되는 Firebase 키인지. 빈 값이면 상위 경로 전체를 읽게 되므로 막는다."""
+    return isinstance(key, str) and bool(key) and not KEY_FORBIDDEN.search(key)
+
+
+def get_wanted(wanted_id):
+    """/wanted/{id} 글 하나. db가 없거나 id 형식이 틀리거나 글이 없으면 None"""
+    if db is None or not is_valid_key(wanted_id):
+        return None
+    return db.child("wanted").child(wanted_id).get().val()
+
+
+def load_offers(wanted_id):
+    """/offers/{wanted_id}의 제안 목록. 각 제안에 id를 넣는다. db가 없으면 빈 목록"""
+    if db is None or not is_valid_key(wanted_id):
+        return []
+    stored = db.child("offers").child(wanted_id).get().val() or {}
+    return [{**offer, "id": offer_id} for offer_id, offer in stored.items()]
+
+
+def get_offer(wanted_id, offer_id):
+    """/offers/{wanted_id}/{offer_id} 제안 하나. 없으면 None"""
+    if db is None or not is_valid_key(wanted_id) or not is_valid_key(offer_id):
+        return None
+    return db.child("offers").child(wanted_id).child(offer_id).get().val()
+
+
+def save_offer(wanted_id, offer):
+    """/offers/{wanted_id}/{push id}에 저장하고 새 id를 반환한다."""
+    return db.child("offers").child(wanted_id).push(offer)["name"]
