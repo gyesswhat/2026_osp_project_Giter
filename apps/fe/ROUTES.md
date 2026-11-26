@@ -41,9 +41,11 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
-| 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 예정 (BE 구현, 화면은 #31) |
+| 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 화면 |
 | 가격 제안 | POST | `/auction/bid` | `auction_bid` | (redirect) | BE 구현 |
-| 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE는 501 스텁, #40에서 구현) |
+| 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE 구현, 화면은 #32) |
+| 경매 수락, 거절 | POST | `/auction/decide` | `auction_decide` | (redirect) | BE 구현 |
+| 경매 다시 올리기 | POST | `/auction/reopen` | `auction_reopen` | (redirect) | BE 구현 |
 
 예정 화면의 경로는 자리만 잡아 둔 것입니다. 상세 화면(구해요·경매)은 화면을 만들 때 위 규칙대로 경로 파라미터를 정해서 이 표를 고칩니다.
 
@@ -75,7 +77,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
   - `price`: `kind=fixed`일 때만 보냅니다. 숫자만 (쉼표 없음)
   - `duration`: 제안 받는 기간(일) `1` `3` `5` `7`. `kind=bid`일 때만 보냅니다 (schema.dbml `auctions.duration_days`)
   - 방식에 맞지 않는 칸은 화면에서 disabled로 바꿔 보내지 않습니다
-- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `상품을 등록했어요. N일 동안 제안을 받아요.`)
+- 성공: `product_detail`로 redirect + flash `상품을 등록했어요.` (`bid`이면 `auction_detail`로 redirect + flash `상품을 등록했어요. N일 동안 제안을 받아요.`)
 - 실패: 같은 템플릿에 `form`(입력값), `errors`(필드별 메시지 dict)를 넘겨 다시 그림
 - 같은 상품명이 이미 있거나 `new` `reserve` `like` `done`이면 `errors['name']`
 - 방식·가격·기간 오류는 `errors['kind']`, `errors['price']`, `errors['duration']`
@@ -106,6 +108,32 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - POST: `name`(상품명), `price`(제안 금액. 쉼표가 있어도 됩니다)
 - 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
 - 그 외에는 `auction_detail`로 redirect + flash. 실패한 경우(본인 상품, 마감 후, `min_price` 미만)는 flash 분류가 `error`입니다
+
+### `auction_end` `/auction/end/<path:name>`
+- 로그인 필요. 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
+- 마감 전이면 `auction_detail`로 redirect
+- 마감 후 48시간 동안 판매자가 결정하지 않으면 `decision`을 `rejected`로 저장합니다 (화면을 열 때 판정)
+- 템플릿에 넘길 값
+  - `product`(dict): 상품. 판매자인지는 `session['id'] == product.seller`로 판단합니다
+  - `auction`(dict): `end_at`, `top_price`, `bid_count`, `duration_days`, `decision`(`pending` | `accepted` | `rejected`), `closed`(항상 `True`)
+  - `bids`(목록, 금액이 높은 순): `bidder`, `price`, `date`. `auction_detail`과 같은 모양입니다. 판매자에게는 첫 번째(최고 제안자)의 `bidder`만 아이디 전체를 넘깁니다
+  - `deadline`: 판매자가 결정할 수 있는 마지막 시각 (ISO 문자열, `end_at` + 48시간)
+
+### `auction_decide` `/auction/decide`
+- POST: `name`(상품명), `decision`(`accepted` 또는 `rejected`)
+- 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
+- 수락하면 `decision=accepted`, 상품의 `sale_status=hold`를 저장하고 `auction_end`로 redirect + flash
+- 거절하면 `decision=rejected`를 저장하고 `auction_end`로 redirect + flash
+- 채팅(`chat_room`)이 구현되면 수락한 뒤 채팅으로 이동하도록 바꿉니다
+- 실패한 경우(판매자가 아님, 마감 전, 이미 결정함, 결정 기한이 지남, 제안이 없는데 수락)는 `auction_end`로 redirect하고 flash 분류가 `error`입니다
+
+### `auction_reopen` `/auction/reopen`
+- POST: `name`(상품명), `mode`(`bid` 또는 `fixed`), `duration_days`(`mode=bid`일 때. `1` `3` `5` `7`), `price`(`mode=fixed`일 때. 숫자만)
+- 로그인하지 않았으면 `auth_login`으로 redirect. 경매 상품이 아니거나 없는 상품이면 404
+- `decision=rejected`인 경매의 판매자만 쓸 수 있습니다
+- `mode=bid`: 제안을 모두 삭제하고 마감 시각을 다시 정한 뒤 `auction_detail`로 redirect + flash
+- `mode=fixed`: 상품을 `kind=fixed`로 바꾸고 `price`를 저장한 뒤 `product_detail`로 redirect + flash
+- 실패한 경우는 `auction_end`로 redirect하고 flash 분류가 `error`입니다
 
 ### `review_list` `/review`
 - 쿼리: `seller` 판매자 ID(있으면 그 판매자가 받은 리뷰만, 판매자 바 표시), `page` 페이지 번호
