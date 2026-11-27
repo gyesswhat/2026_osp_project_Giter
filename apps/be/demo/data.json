@@ -9,7 +9,7 @@
     {
       "days_ago": 6,
       "product": {
-        "name": "컴퓨터구조 및 설계 5판",
+        "name": "컴퓨터구조 및 설계 5판 전공책 팝니다",
         "seller": "ewhain_sw",
         "kind": "fixed",
         "price": 18000,
@@ -22,7 +22,7 @@
     {
       "days_ago": 5,
       "product": {
-        "name": "로지텍 K380 무선 키보드",
+        "name": "로지텍 K380 블루투스 키보드 다크그레이",
         "seller": "ewhain_sw",
         "kind": "fixed",
         "price": 22000,
@@ -35,7 +35,7 @@
     {
       "days_ago": 4,
       "product": {
-        "name": "기숙사용 미니 냉장고",
+        "name": "기숙사에서 쓰던 미니 냉장고 팝니다",
         "seller": "hanwoori_210",
         "kind": "fixed",
         "price": 40000,
@@ -48,7 +48,7 @@
     {
       "days_ago": 3,
       "product": {
-        "name": "공학용 계산기 카시오 fx-991ES",
+        "name": "카시오 fx-991ES 공학용 계산기 케이스 포함",
         "seller": "apple_ewha",
         "kind": "fixed",
         "price": 15000,
@@ -61,7 +61,7 @@
     {
       "days_ago": 4,
       "product": {
-        "name": "이화 과잠 M 사이즈",
+        "name": "이화여대 과잠 M 사이즈 세탁 완료",
         "seller": "apple_ewha",
         "kind": "fixed",
         "price": 25000,
@@ -74,7 +74,7 @@
     {
       "days_ago": 12,
       "product": {
-        "name": "전기 주전자 1L",
+        "name": "전기포트 1L 자취방 정리",
         "seller": "hanwoori_210",
         "kind": "fixed",
         "price": 8000,
@@ -87,7 +87,7 @@
     {
       "days_ago": 25,
       "product": {
-        "name": "토익 LC 1000제",
+        "name": "토익 LC 1000제 문제집 해설집 포함",
         "seller": "apple_ewha",
         "kind": "fixed",
         "price": 6000,
@@ -100,7 +100,7 @@
     {
       "days_ago": 15,
       "product": {
-        "name": "접이식 독서대",
+        "name": "접이식 독서대 거의 새것",
         "seller": "ewhain_sw",
         "kind": "fixed",
         "price": 7000,
@@ -116,7 +116,7 @@
       "duration_days": 5,
       "started_days_ago": 1.7,
       "product": {
-        "name": "아이패드 에어 5세대 64GB",
+        "name": "아이패드 에어5 64GB 와이파이 스페이스그레이",
         "seller": "apple_ewha",
         "kind": "bid",
         "address": "포스코관",
@@ -134,7 +134,7 @@
       "duration_days": 3,
       "started_days_ago": 3.25,
       "product": {
-        "name": "에어팟 2세대",
+        "name": "에어팟 2세대 유선충전 중고",
         "seller": "ewhain_sw",
         "kind": "bid",
         "address": "ECC 앞",
@@ -150,14 +150,14 @@
     }
   ],
   "likes": [
-    {"user": "kimewha07", "product": "컴퓨터구조 및 설계 5판", "days_ago": 2},
-    {"user": "kimewha07", "product": "기숙사용 미니 냉장고", "days_ago": 1},
-    {"user": "kimewha07", "product": "공학용 계산기 카시오 fx-991ES", "days_ago": 1},
-    {"user": "apple_ewha", "product": "컴퓨터구조 및 설계 5판", "days_ago": 3}
+    {"user": "kimewha07", "product": "컴퓨터구조 및 설계 5판 전공책 팝니다", "days_ago": 2},
+    {"user": "kimewha07", "product": "기숙사에서 쓰던 미니 냉장고 팝니다", "days_ago": 1},
+    {"user": "kimewha07", "product": "카시오 fx-991ES 공학용 계산기 케이스 포함", "days_ago": 1},
+    {"user": "apple_ewha", "product": "컴퓨터구조 및 설계 5판 전공책 팝니다", "days_ago": 3}
   ],
   "reviews": [
     {
-      "product_name": "전기 주전자 1L",
+      "product_name": "전기포트 1L 자취방 정리",
       "reviewer": "kimewha07",
       "rating": 5,
       "title": "설명 그대로예요",
@@ -165,7 +165,7 @@
       "days_ago": 6
     },
     {
-      "product_name": "토익 LC 1000제",
+      "product_name": "토익 LC 1000제 문제집 해설집 포함",
       "reviewer": "kimewha07",
       "rating": 4,
       "title": "필기가 거의 없어요",
@@ -173,7 +173,7 @@
       "days_ago": 18
     },
     {
-      "product_name": "접이식 독서대",
+      "product_name": "접이식 독서대 거의 새것",
       "reviewer": "kimewha07",
       "rating": 5,
       "title": "도서관에서 잘 쓰고 있어요",
