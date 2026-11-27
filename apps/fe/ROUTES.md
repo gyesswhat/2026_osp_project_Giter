@@ -150,6 +150,32 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `auth_logout` `/logout`
 - `session`에서 `id`를 지우고 `product_list`로 redirect
 
+### `my_index` `/my`
+- 로그인 필요. 비로그인이면 flash 후 `auth_login`으로 redirect
+- 쿼리: `tab` deals·mine·wanted·likes (기본 deals). 처음에 열려 있을 탭입니다
+- 템플릿에 넘길 값 (`my/index.html`)
+  - `user`: `id, email`
+  - `deals`: 내가 판매자이거나 구매자인 약속(reservations) 목록. 각 약속은 `id, product_name, wanted_id, seller, buyer, place, meet_at, price, state`
+    - `state`: pending(수락 대기)·confirmed(약속 확정)·done(거래 완료). rejected는 넘겨도 화면에서 뺍니다
+    - `meet_at`은 ISO 문자열입니다. `place`, `meet_at`이 없으면(경매·구해요) "채팅에서 정해요"로 보입니다
+  - `my_products`: 내가 올린 상품. 상품 목록(`product_list`)의 `products`와 같은 모양 (경매 상품은 `bid_count, end_at, closed` 포함)
+  - `my_wanted`: 내가 쓴 구해요 글. 구해요 목록(`wanted_list`)의 `items`와 같은 모양 (`id, name, budget, due_date, img_path, state, offers, when`)
+  - `liked_products`: 내가 찜한 상품. `my_products`와 같은 모양
+- 링크와 폼
+  - 내 상품: 고정가 → `my_manage(name)`, 진행 중인 경매 → `auction_detail(name)`, 마감된 경매 → `auction_end(name)`
+  - 내 구해요: `wanted_detail(id)`
+  - 내 찜의 ♥ 버튼: `product_like`로 POST(`name`). 처리 후 상품 상세로 이동합니다
+  - 약속 수락·거절: 판매자에게 `pending` 약속일 때만 보입니다 → `reservation_decide`
+
+### `reservation_decide` `/reservation/decide`
+- POST: `reservation_id`, `decision`(`accepted` 또는 `rejected`) — `auction_decide`와 같은 값입니다
+- 로그인 필요. 비로그인이면 flash 후 `auth_login`으로 redirect
+- 그 약속의 판매자만 결정할 수 있고, `state`가 `pending`일 때만 처리합니다
+- 수락: `state=confirmed`, `decided_at` 저장, 상품 `sale_status=hold`
+- 거절: `state=rejected`, `decided_at` 저장
+- 처리 후 `my_index`(`tab=deals`)로 redirect + flash. 실패하면 flash 분류가 `error`입니다
+- 채팅 화면(#75)의 "약속 수락"도 이 라우트를 씁니다
+
 ## FE와 BE 필드 이름 대응 (#24, #28)
 
 BE(`apps/be`)는 이 문서의 라우트 함수 이름과 경로를 그대로 쓰므로, 예전 실습용 루트 `app.py`와의 라우트 대응표는 지웠습니다.

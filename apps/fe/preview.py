@@ -470,6 +470,13 @@ def auth_logout():
     return redirect(url_for("product_list"))
 
 
+# 마이페이지 약속 탭의 수락·거절 폼이 url_for로 부르는 라우트. 미리보기에서는 저장하지 않고 마이페이지로 돌아간다
+@app.route("/reservation/decide", methods=["POST"])
+def reservation_decide():
+    flash("미리보기에서는 약속 수락·거절이 저장되지 않습니다.")
+    return redirect(url_for("my_index", tab="deals"))
+
+
 @app.route("/dev/components")
 def dev_components():
     return render_template("dev/components.html", sample_products=SAMPLE_PRODUCTS)

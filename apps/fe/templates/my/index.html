@@ -92,34 +92,34 @@
     }
   ] %}
 
-  {# schema.dbml wanted_posts 및 wanted/detail.html 규격 기준 더미 데이터 #}
+  {# schema.dbml wanted_posts 기준 더미 데이터. 필드는 구해요 목록(wanted_list)의 items와 같다 #}
   {% set default_my_wanted = [
     {
       'id': '1',
-      'title': '운영체제 10판 구해요',
+      'name': '운영체제 10판 구해요',
       'budget': 20000,
-      'needed_by': '2026-11-10',
+      'due_date': '2026-11-10',
+      'img_path': '',
       'state': 'open',
-      'picked_offer_id': none,
-      'offer_count': 4
+      'offers': 4
     },
     {
       'id': '2',
-      'title': '공학용 계산기 카시오 fx-570',
+      'name': '공학용 계산기 카시오 fx-570',
       'budget': 15000,
-      'needed_by': '2026-11-06',
+      'due_date': '2026-11-06',
+      'img_path': '',
       'state': 'open',
-      'picked_offer_id': none,
-      'offer_count': 0
+      'offers': 0
     },
     {
       'id': '6',
-      'title': '토익 LC 1000제',
+      'name': '토익 LC 1000제',
       'budget': 8000,
-      'needed_by': '2026-11-01',
+      'due_date': '2026-11-01',
+      'img_path': '',
       'state': 'done',
-      'picked_offer_id': '1',
-      'offer_count': 3
+      'offers': 3
     }
   ] %}
 
@@ -161,9 +161,10 @@
     }
   ] %}
 
-  {% set deal_items = deals if deals is defined else default_deals %}
+  {# 약속 탭은 진행 중(pending, confirmed)과 거래 완료(done)만 보여 준다. 거절(rejected)은 뺀다 (schema.dbml reservations) #}
+  {% set deal_items = (deals if deals is defined else default_deals) | rejectattr('state', 'equalto', 'rejected') | list %}
   {% set mine_items = my_products if my_products is defined else default_my_products %}
-  {% set wanted_items = my_wanted if my_wanted is defined else (wanted_products if wanted_products is defined else default_my_wanted) %}
+  {% set wanted_items = my_wanted if my_wanted is defined else default_my_wanted %}
   {% set like_items = liked_products if liked_products is defined else default_liked_products %}
 
   {% set req_tab = request.args.get('tab', 'deals') %}
@@ -181,8 +182,7 @@
   {% set state_labels = {
     'pending': '수락 대기',
     'confirmed': '약속 확정',
-    'done': '거래 완료',
-    'rejected': '거절함'
+    'done': '거래 완료'
   } %}
 
   {# 프로필 상단 패널 #}
@@ -231,7 +231,6 @@
     </div>
 
     <div id="dealGrid"
-         data-chat-url="{{ url_for('chat_room') }}"
          class="mt-6 grid items-start gap-6 md:grid-cols-2 lg:grid-cols-3"{{ ' hidden' if ns.active == 0 }}>
       {% for d in deal_items %}
         {% set is_done = (d.state == 'done') %}
@@ -283,10 +282,12 @@
           <div class="tear mt-4 pb-5 pt-4" data-deal-foot>
             {% if d.state == 'pending' %}
               {% if is_seller %}
-                <div class="flex gap-2">
-                  {{ button('수락', variant='primary', class='flex-1', attrs={'data-accept': ''}) }}
-                  {{ button('거절', variant='quiet', class='flex-1', attrs={'data-reject': ''}) }}
-                </div>
+                {# reservation_decide: 수락하면 state=confirmed(상품 sale_status=hold), 거절하면 state=rejected. 처리 후 마이페이지로 redirect #}
+                <form method="post" action="{{ url_for('reservation_decide') }}" class="flex gap-2">
+                  <input type="hidden" name="reservation_id" value="{{ d_no }}">
+                  {{ button('수락', variant='primary', type='submit', class='flex-1', attrs={'name': 'decision', 'value': 'accepted'}) }}
+                  {{ button('거절', variant='quiet', type='submit', class='flex-1', attrs={'name': 'decision', 'value': 'rejected'}) }}
+                </form>
               {% else %}
                 <p class="text-sm text-muted">판매자의 수락을 기다리고 있어요.</p>
               {% endif %}
@@ -295,8 +296,6 @@
                 {{ button('채팅 열기', variant='outline', href=url_for('chat_room')) }}
                 <span class="stamp mr-2">약속 확정</span>
               </div>
-            {% elif d.state == 'rejected' %}
-              <p class="text-sm text-muted">신청을 거절했어요.</p>
             {% else %}
               {% if not is_seller and (d.product_name or d.product) %}
                 <div class="flex items-center justify-between gap-3">
@@ -347,27 +346,14 @@
   <div id="tab-wanted" role="tabpanel" aria-labelledby="mytab-wanted" class="pt-6"{{ ' hidden' if current_tab != 'wanted' }}>
     <div id="myWantedList" class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-4"{{ ' hidden' if not wanted_items }}>
       {% for w in wanted_items %}
-        {% set w_id = w.id if (w.id is defined and w.id is not none) else none %}
-        {% set w_title = w.title if (w.title is defined and w.title) else (w.name if w.name is defined else '') %}
-        {% set w_budget = w.budget if (w.budget is defined and w.budget is not none) else (w.price if w.price is defined else 0) %}
-        {% set w_status_raw = w.state if (w.state is defined and w.state) else (w.sale_status if w.sale_status is defined else 'open') %}
-        {% set w_picked_id = w.picked_offer_id if w.picked_offer_id is defined else none %}
-        {% set w_is_done = (w_status_raw == 'done') or (w_picked_id is not none) or (w.closed is defined and w.closed) %}
-        {% set w_offers = w.offer_count if (w.offer_count is defined and w.offer_count is not none) else (w.offers if (w.offers is defined and w.offers is not none) else 0) %}
-        {% set raw_needed = (w.needed_by if (w.needed_by is defined and w.needed_by) else '') | string %}
-        {% if w.when is defined and w.when %}
-          {% set w_when = w.when %}
-        {% elif w.due_text is defined and w.due_text %}
-          {% set w_when = w.due_text %}
-        {% elif (raw_needed | length) >= 10 %}
-          {% set w_when = (raw_needed[5:7] | int) ~ '.' ~ raw_needed[8:10] ~ '까지' %}
-        {% elif w.address is defined and w.address %}
-          {% set w_when = w.address %}
-        {% else %}
-          {% set w_when = '' %}
-        {% endif %}
-        {% set w_src = w.image if (w.image is defined and w.image) else (url_for('static', filename='uploads/' ~ w.img_path) if (w.img_path is defined and w.img_path) else none) %}
-        {% set w_href = url_for('wanted_detail', id=w_id) if w_id is not none else url_for('wanted_detail') %}
+        {# picked_offer_id는 고르기 전에 빈 문자열이라 구했는지는 state로만 판단한다 #}
+        {% set w_title = w.name %}
+        {% set w_is_done = w.state == 'done' %}
+        {% set w_offers = w.offers | default(0) %}
+        {% set due = w.due_date or '' %}
+        {% set w_when = w.when or ((due[5:7] ~ '.' ~ due[8:10] ~ '까지') if due | length >= 10 else due) %}
+        {% set w_src = url_for('static', filename='uploads/' ~ w.img_path) if w.img_path else none %}
+        {% set w_href = url_for('wanted_detail', id=w.id) %}
 
         <article class="slip min-w-0">
           <a href="{{ w_href }}" class="block" aria-label="{{ w_title }} 상세 보기">
@@ -391,7 +377,7 @@
             </h3>
             <div class="row text-sm">
               <span class="shrink-0 whitespace-nowrap text-muted">예산</span><span class="leader"></span>
-              <span class="num shrink-0 whitespace-nowrap text-[15px] text-brandink">{{ won(w_budget) }}까지</span>
+              <span class="num shrink-0 whitespace-nowrap text-[15px] text-brandink">{{ won(w.budget) }}까지</span>
             </div>
             <p class="flex justify-between gap-2 text-xs text-muted">
               <span class="truncate font-mono">{{ w_when }}</span>
@@ -419,8 +405,8 @@
       {% for p in like_items %}
         {% call product_card(p) %}
           <form method="post" action="{{ url_for('product_like') }}" class="!mt-0 absolute right-2 top-2 z-10" data-unlike-form>
+            {# product_like는 찜을 토글한 뒤 상품 상세로 redirect한다 (ROUTES.md) #}
             <input type="hidden" name="name" value="{{ p.name }}">
-            <input type="hidden" name="next" value="{{ url_for('my_index', tab='likes') }}">
             <button type="submit"
                     aria-pressed="true"
                     aria-label="{{ p.name }} 찜 해제"

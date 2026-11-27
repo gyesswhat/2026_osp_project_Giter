@@ -38,7 +38,7 @@
     });
   }
 
-  // 약속 탭: 진행 중 / 거래 완료 필터 및 수락·거절 상태 전환
+  // 약속 탭: 진행 중 / 거래 완료 필터
   const dealGrid = document.getElementById('dealGrid');
   const dealEmpty = document.getElementById('dealEmpty');
   const dealFilter = document.getElementById('dealFilter');
@@ -75,35 +75,5 @@
     });
   }
 
-  if (dealGrid) {
-    const chatUrl = dealGrid.dataset.chatUrl || '/chat';
-
-    dealGrid.addEventListener('click', (e) => {
-      const acceptBtn = e.target.closest('[data-accept]');
-      const rejectBtn = e.target.closest('[data-reject]');
-      const card = e.target.closest('[data-deal-card]');
-      if (!card || (!acceptBtn && !rejectBtn)) return;
-
-      const stateTextEl = card.querySelector('[data-deal-state-text]');
-      const footEl = card.querySelector('[data-deal-foot]');
-
-      if (acceptBtn) {
-        card.dataset.dealState = 'confirmed';
-        if (stateTextEl) stateTextEl.textContent = '약속 확정';
-        if (footEl) {
-          footEl.innerHTML =
-            `<div class="flex items-center justify-between gap-3">` +
-              `<a href="${chatUrl}" class="btn-outline">채팅 열기</a>` +
-              `<span class="stamp solid in mr-2">약속 확정</span>` +
-            `</div>`;
-        }
-      } else if (rejectBtn) {
-        card.dataset.dealState = 'rejected';
-        if (stateTextEl) stateTextEl.textContent = '거절함';
-        if (footEl) {
-          footEl.innerHTML = `<p class="text-sm text-muted">신청을 거절했어요.</p>`;
-        }
-      }
-    });
-  }
+  // 수락·거절은 reservation_decide 폼으로 서버에 보낸다 (templates/my/index.html)
 })();
