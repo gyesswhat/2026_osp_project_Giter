@@ -224,6 +224,8 @@
 @media (max-width: 767px) {
   .chat-layout {
     grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    background: transparent;
   }
 
   .chat-sidebar {
