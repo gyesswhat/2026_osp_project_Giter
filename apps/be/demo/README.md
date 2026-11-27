@@ -35,8 +35,8 @@ python demo/seed.py
 | 항목 | 내용 |
 | --- | --- |
 | 고정가 상품 8개 | 판매중 4, 예약중 1, 거래 완료 3 (거래 완료는 목록에 보이지 않고 리뷰 3개가 달려 있다) |
-| 경매 진행 중 | `아이패드 에어 5세대 64GB` (제안 3건, 마감까지 약 3.3일) |
-| 경매 마감 | `에어팟 2세대` (제안 3건, 마감 후 6시간 경과, 판매자 `ewhain_sw`가 수락과 거절을 아직 하지 않았다) |
+| 경매 진행 중 | `아이패드 에어5 64GB 와이파이 스페이스그레이` (제안 3건, 마감까지 약 3.3일) |
+| 경매 마감 | `에어팟 2세대 유선충전 중고` (제안 3건, 마감 후 6시간 경과, 판매자 `ewhain_sw`가 수락과 거절을 아직 하지 않았다) |
 | 찜 | 4개 |
 | 구해요 | 글 3개, 제안이 있는 글은 `운영체제 공룡책 10판` (제안 2건) |
 
@@ -44,7 +44,17 @@ python demo/seed.py
 
 # 3. 사진 출처
 
-사진은 아직 없다. `demo/photos/`에 파일을 넣고 `data.json`의 상품에 `img_path`를 적으면 실행할 때 복사한다. 사진마다 아래 표에 출처를 적는다.
+`demo/photos/`의 파일은 실행할 때 업로드 폴더로 복사하고, `data.json`의 상품 `img_path`가 파일명을 가리킨다. 사진은 가로 1000px로 받았고(2026-11-27), 두 라이선스 모두 출처 표기 없이 사용과 수정을 허용한다. 사진을 바꾸면 아래 표도 고친다.
 
 | 파일 | 상품 | 출처 URL | 라이선스 |
 | --- | --- | --- | --- |
+| `textbook.jpg` | 컴퓨터구조 및 설계 5판 전공책 팝니다 | https://www.pexels.com/photo/white-book-204570/ | Pexels License |
+| `keyboard.jpg` | 로지텍 K380 블루투스 키보드 다크그레이 | https://www.pexels.com/photo/close-up-of-wireless-keyboard-19686530/ | Pexels License |
+| `mini-fridge.jpg` | 기숙사에서 쓰던 미니 냉장고 팝니다 | https://unsplash.com/photos/open-black-compact-refrigerator-filled-with-soda-bottles-3h7jbWXhpgM | Unsplash License |
+| `calculator.jpg` | 카시오 fx-991ES 공학용 계산기 케이스 포함 | https://www.pexels.com/photo/close-up-of-a-calculator-12174065/ | Pexels License |
+| `varsity-jacket.jpg` | 이화여대 과잠 M 사이즈 세탁 완료 | https://www.pexels.com/photo/letterman-jacket-hanging-on-outdoor-volleyball-net-32483244/ | Pexels License |
+| `kettle.jpg` | 전기포트 1L 자취방 정리 | https://www.pexels.com/photo/electric-glass-kettle-with-water-10965749/ | Pexels License |
+| `workbook.jpg` | 토익 LC 1000제 문제집 해설집 포함 | https://www.pexels.com/photo/hardbound-books-on-brown-wooden-table-4069089/ | Pexels License |
+| `book-stand.jpg` | 접이식 독서대 거의 새것 | https://www.pexels.com/photo/book-on-wooden-book-stand-11587145/ | Pexels License |
+| `ipad.jpg` | 아이패드 에어5 64GB 와이파이 스페이스그레이 | https://www.pexels.com/photo/close-up-shot-of-an-ipad-6849081/ | Pexels License |
+| `airpods.jpg` | 에어팟 2세대 유선충전 중고 | https://www.pexels.com/photo/close-up-photo-of-airpods-3921817/ | Pexels License |

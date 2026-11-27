@@ -10,6 +10,7 @@
       "days_ago": 6,
       "product": {
         "name": "컴퓨터구조 및 설계 5판 전공책 팝니다",
+        "img_path": "textbook.jpg",
         "seller": "ewhain_sw",
         "kind": "fixed",
         "price": 18000,
@@ -23,6 +24,7 @@
       "days_ago": 5,
       "product": {
         "name": "로지텍 K380 블루투스 키보드 다크그레이",
+        "img_path": "keyboard.jpg",
         "seller": "ewhain_sw",
         "kind": "fixed",
         "price": 22000,
@@ -36,6 +38,7 @@
       "days_ago": 4,
       "product": {
         "name": "기숙사에서 쓰던 미니 냉장고 팝니다",
+        "img_path": "mini-fridge.jpg",
         "seller": "hanwoori_210",
         "kind": "fixed",
         "price": 40000,
@@ -49,6 +52,7 @@
       "days_ago": 3,
       "product": {
         "name": "카시오 fx-991ES 공학용 계산기 케이스 포함",
+        "img_path": "calculator.jpg",
         "seller": "apple_ewha",
         "kind": "fixed",
         "price": 15000,
@@ -62,6 +66,7 @@
       "days_ago": 4,
       "product": {
         "name": "이화여대 과잠 M 사이즈 세탁 완료",
+        "img_path": "varsity-jacket.jpg",
         "seller": "apple_ewha",
         "kind": "fixed",
         "price": 25000,
@@ -75,6 +80,7 @@
       "days_ago": 12,
       "product": {
         "name": "전기포트 1L 자취방 정리",
+        "img_path": "kettle.jpg",
         "seller": "hanwoori_210",
         "kind": "fixed",
         "price": 8000,
@@ -88,6 +94,7 @@
       "days_ago": 25,
       "product": {
         "name": "토익 LC 1000제 문제집 해설집 포함",
+        "img_path": "workbook.jpg",
         "seller": "apple_ewha",
         "kind": "fixed",
         "price": 6000,
@@ -101,6 +108,7 @@
       "days_ago": 15,
       "product": {
         "name": "접이식 독서대 거의 새것",
+        "img_path": "book-stand.jpg",
         "seller": "ewhain_sw",
         "kind": "fixed",
         "price": 7000,
@@ -117,6 +125,7 @@
       "started_days_ago": 1.7,
       "product": {
         "name": "아이패드 에어5 64GB 와이파이 스페이스그레이",
+        "img_path": "ipad.jpg",
         "seller": "apple_ewha",
         "kind": "bid",
         "address": "포스코관",
@@ -135,6 +144,7 @@
       "started_days_ago": 3.25,
       "product": {
         "name": "에어팟 2세대 유선충전 중고",
+        "img_path": "airpods.jpg",
         "seller": "ewhain_sw",
         "kind": "bid",
         "address": "ECC 앞",
