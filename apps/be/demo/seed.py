@@ -224,9 +224,9 @@ def get_stored_time(now, days_ago):
 
 # 4. 사진 복사
 def copy_photos():
-    """demo/photos/의 파일을 UPLOAD_DIR로 복사한다. glob("*")은 .gitkeep을 포함하지 않는다."""
+    """demo/photos/의 파일을 UPLOAD_DIR로 복사한다. [!.]*는 .gitkeep을 제외한다."""
     Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
-    photos = sorted((DEMO_DIR / "photos").glob("*"))
+    photos = sorted((DEMO_DIR / "photos").glob("[!.]*"))
     for photo in photos:
         shutil.copy2(photo, UPLOAD_DIR)
 
