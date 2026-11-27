@@ -1,26 +1,22 @@
 // 구해요(wanted) 도메인 전용 동작
 
-// 1. 구해요 목록: 분류 칩 변경 시 카드 필터링
+// 칩 값을 쿼리에 넣어 같은 화면을 다시 불러온다. 기본값이면 쿼리에서 뺀다. 페이지 번호는 1로 돌린다
+const reloadWithParam = (key, value, defaultValue) => {
+  const url = new URL(window.location.href);
+  if (!value || value === defaultValue) {
+    url.searchParams.delete(key);
+  } else {
+    url.searchParams.set(key, value);
+  }
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+};
+
+// 1. 구해요 목록: 분류 칩을 바꾸면 ?category= 로 다시 불러와 BE가 거른다
 const categoryGroup = document.getElementById('wantedCategoryChips');
 if (categoryGroup) {
-  const cards = [...document.querySelectorAll('[data-wanted-card]')];
-  const emptyBox = document.getElementById('wantedEmpty');
-
-  const filterWantedCards = (selectedCategory) => {
-    let visibleCount = 0;
-    cards.forEach((card) => {
-      const match = selectedCategory === 'all' || card.dataset.category === selectedCategory;
-      card.hidden = !match;
-      if (match) visibleCount += 1;
-    });
-    if (emptyBox) {
-      emptyBox.hidden = visibleCount > 0;
-    }
-  };
-
   categoryGroup.addEventListener('chipchange', (e) => {
-    const selected = e.detail.values[0] || 'all';
-    filterWantedCards(selected);
+    reloadWithParam('category', e.detail.values[0], 'all');
   });
 }
 
@@ -268,13 +264,12 @@ if (wantedNewForm) {
   });
 }
 
-// 3. 구해요 상세: 제안 사진 업로드, 제안 정렬, 제안 보내기 폼 검증
+// 3. 구해요 상세: 제안 사진 업로드, 제안 정렬(?sort=), 제안 보내기 폼 검증
 const wantedDetailRoot = document.getElementById('wantedDetailRoot');
 if (wantedDetailRoot) {
   const budgetLimit = Number(wantedDetailRoot.dataset.budget) || 0;
 
   const offerSortChips = document.getElementById('offerSortChips');
-  const offerList = document.getElementById('offerList');
   const offerForm = document.getElementById('offerForm');
   const oPriceInput = document.getElementById('oPrice');
   const offerMsgEl = document.getElementById('offerMsg');
@@ -413,28 +408,9 @@ if (wantedDetailRoot) {
     }
   };
 
-  const sortOfferCards = (sortType) => {
-    if (!offerList) return;
-    const cards = [...offerList.querySelectorAll('[data-offer-card]')];
-
-    cards.sort((a, b) => {
-      if (sortType === 'low') {
-        const diff = Number(a.dataset.price) - Number(b.dataset.price);
-        return diff !== 0 ? diff : Number(a.dataset.order) - Number(b.dataset.order);
-      }
-      const timeCmp = String(b.dataset.time).localeCompare(String(a.dataset.time));
-      return timeCmp !== 0 ? timeCmp : Number(a.dataset.order) - Number(b.dataset.order);
-    });
-
-    cards.forEach((card) => {
-      offerList.appendChild(card);
-    });
-  };
-
   if (offerSortChips) {
     offerSortChips.addEventListener('chipchange', (e) => {
-      const selected = e.detail.values[0] || 'low';
-      sortOfferCards(selected);
+      reloadWithParam('sort', e.detail.values[0], 'low');
     });
   }
 
