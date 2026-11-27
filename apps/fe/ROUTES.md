@@ -33,7 +33,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 로그인 | GET, POST | `/login` | `auth_login` | `auth/login.html` | 화면 |
 | 회원가입 | GET, POST | `/signup` | `auth_signup` | `auth/signup.html` | 화면 |
 | 로그아웃 | GET | `/logout` | `auth_logout` | (없음, 목록으로 redirect) | 미리보기 |
-| 채팅 | GET | `/chat` | `chat_room` | `chat/room.html` | 예정 |
+| 채팅 | GET, POST | `/chat` | `chat_room` | `chat/room.html` | 화면 |
 | 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 화면 |
 | 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 예정 (화면은 PR #67, BE는 501 스텁) |
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 화면 |
@@ -168,6 +168,21 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 방금 등록한 리뷰 요약. BE는 `session['last_review']`에 상품명을 저장하고, 그 상품명으로 DB에서 리뷰를 읽어 `review`로 넘깁니다.
 - BE에서 리뷰 상세가 실제 데이터를 보여 주게 되면 `review_detail`로 바로 보내도 됩니다.
 
+### `chat_room` `/chat`
+- 로그인 필요. 비로그인이면 `auth_login`으로 redirect
+- GET 쿼리: `room_id`(채팅방 ID)
+- POST: `room_id, text`(메시지 내용)
+- 전송 후 `chat_room`으로 redirect하여 메시지 목록을 다시 표시합니다.
+- 템플릿에 넘길 값:
+  - `rooms`: 로그인한 사용자의 채팅방 목록
+  - `room`: 선택된 채팅방
+  - `product`: 거래 상품 정보
+  - `messages`: 메시지 목록
+  - `reservation`: 약속 정보(없으면 `None`)
+- 약속 신청·수락 버튼은 로그인한 사용자의 역할과 약속 상태에 따라 활성화합니다.
+- `mode`는 미리보기 전용 옵션입니다. `before`(신청 전), `requested`(수락 대기), `accepted`(확정 후)로 화면을 확인합니다.
+- 현재 메시지 전송은 미리보기 서버의 세션에만 반영합니다. 실제 DB 저장 및 약속 신청·수락 처리는 BE 연동 시 구현합니다.
+
 ### `wanted_list` `/wanted`
 - 로그인하지 않아도 볼 수 있습니다.
 - 쿼리: `category` all·book·digital·dorm·etc(기본 all), `state` all·open·done(기본 all), `page` 1부터
@@ -275,5 +290,6 @@ BE(`apps/be`)는 이 문서의 라우트 함수 이름과 경로를 그대로 �
 | 구해요 글쓰기 | 폼, 취소 | `wanted_new` `wanted_list` |
 | 로그인 | 폼, 회원가입 | `auth_login` `auth_signup` |
 | 회원가입 | 폼, 로그인 | `auth_signup` `auth_login` |
+| 채팅 | 채팅방 선택, 메시지 전송 폼 | `chat_room` |
 
 리뷰 상세의 상품 카드 → 상품 상세 링크는 허제인 담당 작업으로 남겨 두었습니다. (`url_for('product_detail', name=상품명)`)
