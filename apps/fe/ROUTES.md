@@ -35,10 +35,10 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 로그아웃 | GET | `/logout` | `auth_logout` | (없음, 목록으로 redirect) | 미리보기 |
 | 채팅 | GET, POST | `/chat` | `chat_room` | `chat/room.html` | 화면 |
 | 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 화면 |
-| 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 화면 (BE는 501 스텁) |
+| 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 화면 |
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 화면 |
-| 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
-| 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
+| 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 처리 |
+| 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 처리 |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
 | 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
 | 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 화면 |
@@ -196,8 +196,8 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - DB에 연결하지 못하면 빈 목록입니다.
 
 ### `wanted_detail` `/wanted/detail/<id>`
-- 로그인하지 않아도 볼 수 있습니다. 글이 없으면 404
-- 쿼리: `sort` low(낮은 가격순, 기본)·new(최신순). 제안은 BE가 이 순서로 정렬해서 넘깁니다
+- 로그인하지 않아도 볼 수 있습니다. 글이 없으면 404, id 형식이 틀리거나 DB에 연결하지 못해도 404
+- 쿼리: `sort` low(낮은 가격순, 기본)·new(최신순). 제안은 BE가 이 순서로 정렬해서 넘깁니다. low에서 같은 금액이면 최신 제안이 먼저입니다
 - 템플릿에 넘길 값 (`wanted/detail.html`)
   - `post`: `id, writer, name, category, budget, condition, due_date, places, description, img_path, state, picked_offer_id, offer_count, date`
     - `places`는 리스트, `picked_offer_id`는 고르기 전에 빈 문자열, `date`는 올린 날(예: `2026.11.26`)
@@ -219,7 +219,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
   - `budget`: 쉼표가 있어도 됩니다. 1원 이상 정수
   - `category`: 비어 있으면 `etc`로 저장합니다. `due_date`: `YYYY-MM-DD`, 오늘 포함 이후
   - `description`, `picture`(JPG·PNG, 5MB 이하)는 선택입니다. `writer`는 받지 않고 `session['id']`를 씁니다
-- 성공: flash `글을 올렸어요.` 후 `wanted_list`로 redirect (상세 화면을 연결하면 `wanted_detail(id)`로 바꿉니다)
+- 성공: flash `글을 올렸어요.` 후 `wanted_detail(id=새 글 id)`로 redirect
 - 실패: 같은 템플릿에 `form`(입력값 dict, `places`는 리스트), `errors`(필드별 메시지 dict)를 넘겨 400으로 다시 그림
   - `errors` 키: `name, category, budget, condition, due_date, places, picture`
 - DB에 연결하지 못하면 flash `지금은 글을 저장할 수 없어요.` 후 같은 화면을 다시 보여 줍니다 (사진도 저장하지 않음)
