@@ -162,17 +162,19 @@ def auth_send_code():
     # 세션에 인증 정보 저장
     session["email_verification"] = {
         "email": email,
-        "code_hash": hashlib.sha256(
-            code.encode("utf-8")
+        "code_hash": hmac.new(
+            app.config["SECRET_KEY"].encode("utf-8"),
+            code.encode("utf-8"),
+            "sha256"
         ).hexdigest(),
         "expires_at": expires_at,
-        "verified": False
+        "verified": False,
+        "attempts": 0
     }
 
      # 개발 환경: 이메일을 발송하지 않고 인증 코드 표시
     if not sent:
         message = f"개발용 인증 코드: {code}"
-        flash(message, "info")
         return message, 200
 
     return "인증 코드가 이메일로 발송되었어요.", 200
@@ -199,15 +201,27 @@ def auth_verify_code():
     if not re.fullmatch(r"\d{6}", auth_code):
         return "인증 코드는 숫자 6자리로 입력해 주세요.", 400
 
-    input_hash = hashlib.sha256(
-        auth_code.encode("utf-8")
+    input_hash =  hmac.new(
+        app.config["SECRET_KEY"].encode("utf-8"),
+        auth_code.encode("utf-8"),
+        "sha256"
     ).hexdigest()
 
     if not hmac.compare_digest(
         input_hash,
         verification["code_hash"]
     ):
-        return "인증 코드가 일치하지 않아요.", 400
+
+        verification["attempts"] = verification.get("attempts", 0) + 1
+
+        if verification["attempts"] >= 5:
+            session.pop("email_verification", None)
+            return "인증 코드 입력 횟수를 초과했어요. 다시 발급해 주세요.", 400
+
+        session["email_verification"] = verification
+
+        remaining = 5 - verification["attempts"]
+        return f"인증 코드가 일치하지 않아요. 남은 시도 횟수: {remaining}회", 400
 
     verification["verified"] = True
     session["email_verification"] = verification
@@ -254,7 +268,6 @@ def auth_signup():
         password = request.form.get("password", "")
         password_confirm = request.form.get("password_confirm", "")
         email = request.form.get("email", "").strip().lower()
-        #TODO : auth_code 코드 작성
         phone = request.form.get("phone", "").strip() or None
 
         form = {
