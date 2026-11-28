@@ -4,6 +4,9 @@
 
 {% set f = form or {} %}
 {% set err = errors or {} %}
+{# 메일 인증을 끝낸 뒤 다른 오류로 폼을 다시 표시할 때 인증 완료 상태를 유지한다. #}
+{% set verification = session.get('email_verification') or {} %}
+{% set verified = verification.verified and verification.email == f.email %}
 
 {% block title %}회원가입 | BoughtIT{% endblock %}
 {% block head %}
@@ -17,31 +20,24 @@
   </div>
 
   <div class="panel p-6 sm:p-8">
-    <form action="{{ url_for('auth_signup') }}" method="post" class="space-y-6">
+    <form action="{{ url_for('auth_signup') }}" method="post" class="space-y-6"
+      data-signup-form data-verified="{{ 'true' if verified else 'false' }}"
+      data-code-url="{{ url_for('auth_send_code') }}" data-verify-url="{{ url_for('auth_verify_code') }}">
       {# 특정 필드에 속하지 않는 오류 #}
       {% if err.general %}
       <p class="error" role="alert">{{ err.general }}</p>
       {% endif %}
 
-      {# 아이디 입력 및 중복확인 #}
-      <div>
-        <label for="user_id" class="label">
-          아이디 <span class="text-stamp" aria-hidden="true">*</span>
-        </label>
-        <div class="flex items-end gap-2">
-          <div class="flex-1">
-            <input id="user_id" name="user_id" type="text" value="{{ f.user_id or '' }}" placeholder="아이디를 입력하세요" required class="field"
-              {%- if err.user_id %} aria-invalid="true"{% endif %} aria-describedby="user_id-msg">
-          </div>
-          {{ button('중복 확인', variant='outline', type='button', class='shrink-0 h-[38px] px-3') }}
-        </div>
-        {% if err.user_id %}
-        <p id="user_id-msg" class="error" role="alert">{{ err.user_id }}</p>
-        {% else %}
-        <p id="user_id-msg" class="help" hidden></p>
-        {% endif %}
-      </div>
-      
+      {# 아이디 입력. 중복 여부는 가입하기를 누르면 err.user_id로 표시한다. #}
+      {{ input(
+          name='user_id',
+          label='아이디',
+          value=f.user_id,
+          placeholder='아이디를 입력하세요',
+          error=err.user_id,
+          required=true
+      ) }}
+
       {# 비밀번호 입력 #}
       {{ input(
           name='password',
@@ -76,10 +72,10 @@
             <input id="email" name="email" type="email" value="{{ f.email or '' }}" placeholder="example@ewha.ac.kr" required class="field"
               {%- if err.email %} aria-invalid="true"{% endif %} aria-describedby="email-msg">
           </div>
-          {{ button('인증 요청', variant='outline', type='button', class='shrink-0 h-[38px] px-3') }}
+          {{ button('인증 요청', variant='outline', type='button', class='shrink-0 h-[38px] px-3', attrs={'id': 'send-code-btn'}) }}
         </div>
         <p class="help">BoughtIT은 이화인만 가입할 수 있어요. ewha.ac.kr 또는 ewhain.net 메일로 인증해 주세요.</p>
-        <p id="email-msg" class="error"{% if err.email %} role="alert"{% else %} hidden{% endif %}>{{ err.email or '' }}</p>
+        <p id="email-msg" class="error" aria-live="polite"{% if not err.email %} hidden{% endif %}>{{ err.email or '' }}</p>
       </div>
 
       {# 인증번호 입력 칸 #}
@@ -88,22 +84,18 @@
           <div class="flex-1">
             <input id="auth_code" name="auth_code" type="text" placeholder="000000" class="field">
           </div>
-          {{ button('코드 확인', variant='primary', type='button', class='shrink-0 h-[38px] px-3') }}
-          {{ button('인증 완료', variant='primary', type='button', disabled=true, class='shrink-0 h-[38px] px-3', attrs={'hidden': true}) }}
+          {{ button('코드 확인', variant='primary', type='button', class='shrink-0 h-[38px] px-3', attrs={'id': 'verify-code-btn'}) }}
+          {{ button('인증 완료', variant='primary', type='button', disabled=true, class='shrink-0 h-[38px] px-3', attrs={'id': 'verified-btn', 'hidden': true}) }}
         </div>
 
-        {# 1) 인증 요청 후 노출되는 타이머 #}
-        <p id="code-timer-msg" class="help" hidden>
-          메일로 보낸 6자리 코드를 입력해 주세요. 남은 시간 <span class="num font-bold">05:00</span>
-        </p>
+        {# 1) 인증 요청 결과. auth_send_code의 응답 문구를 표시한다. #}
+        <p id="code-info-msg" class="help" aria-live="polite" hidden></p>
 
-        {# 2) 코드 불일치 시 에러 문구 #}
-        <p id="code-error-msg" class="error" hidden>
-          코드는 숫자 6자리예요. 메일을 다시 확인해 주세요.
-        </p>
+        {# 2) 코드 확인 오류. auth_verify_code의 응답 문구 또는 err.auth_code를 표시한다. #}
+        <p id="code-error-msg" class="error" aria-live="polite"{% if not err.auth_code %} hidden{% endif %}>{{ err.auth_code or '' }}</p>
 
         {# 3) 인증 완료 문구 #}
-        <p id="code-success-msg" class="help font-semibold text-brand" hidden>
+        <p id="code-success-msg" class="help font-semibold text-brand" aria-live="polite" hidden>
           이화인 메일 인증이 끝났어요.
         </p>
       </div>
@@ -121,7 +113,7 @@
       {# 가입하기 버튼 #}
       <div class="pt-2">
         {{ button('가입하기', variant='primary', type='submit', class='w-full text-base py-3') }}
-        <p id="submit-help-msg" class="help text-center mt-2" hidden>
+        <p id="submit-help-msg" class="help text-center mt-2">
           메일 인증을 마치면 가입할 수 있어요.
         </p>
       </div>
@@ -137,3 +129,5 @@
   </div>
 </section>
 {% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/auth.js') }}"></script>{% endblock %}

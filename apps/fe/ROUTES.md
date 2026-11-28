@@ -145,7 +145,10 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `auth_signup` `/signup`
 - POST: `user_id, password, password_confirm, email, auth_code, phone`(선택)
 - 성공하면 `auth_login`으로 redirect
-- 실패: 같은 템플릿에 `form`(`user_id, email, phone`), `errors`(`user_id, password, password_confirm, email, general`)를 넘겨 400으로 다시 표시
+- 실패: 같은 템플릿에 `form`(`user_id, email, phone`), `errors`(`user_id, password, password_confirm, email, auth_code, general`)를 넘겨 400으로 다시 표시
+- 메일 인증: `static/js/auth.js`가 '인증 요청'은 `auth_send_code`(`POST /signup/code`, 필드 `email`), '코드 확인'은 `auth_verify_code`(`POST /signup/verify`, 필드 `email, auth_code`)로 보내고, 응답 본문(안내 문구)을 그대로 표시합니다. 응답이 200이 아니면 오류로 표시합니다
+- 인증을 끝낸 뒤 다른 오류로 다시 표시할 때는 템플릿이 `session['email_verification']`의 `verified, email`을 읽어 인증 완료 상태를 유지합니다
+- 아이디 중복 확인 버튼은 없습니다. 가입하기를 누르면 `errors.user_id`로 표시합니다
 
 ### `auth_logout` `/logout`
 - `session`에서 `id`를 지우고 `product_list`로 redirect
