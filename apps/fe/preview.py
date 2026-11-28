@@ -27,7 +27,7 @@ SCREENS = [
     ("/review/new", "review_new", "review/new.html"),
     ("/review/done", "review_done", "review/done.html"),
     ("/auction/detail/<path:name>", "auction_detail", "auction/detail.html"),
-    ("/auction/end", "auction_end", "auction/end.html"),
+    ("/auction/end/<path:name>", "auction_end", "auction/end.html"),
     ("/chat", "chat_room", "chat/room.html"),
     ("/wanted", "wanted_list", "wanted/list.html"),
     ("/wanted/detail", "wanted_detail", "wanted/detail.html"),
@@ -210,8 +210,8 @@ def auction_detail(name):
     auction = {
         "top_price": highest_bid,
         "bid_count": 0,
-        "end_at": "2026-11-25T18:00:00",
-        "closed": False,
+        "end_at": product.get("end_at"),
+        "closed": product.get("closed", False),
     }
 
     if highest_bid==0:
@@ -422,6 +422,260 @@ def auth_signup():
 auth_login.methods = ["GET", "POST"]
 auth_signup.methods = ["GET", "POST"]
 
+def auction_end(name):
+    """상품별 경매 마감 화면 미리보기 (실제 DB 저장 없음)"""
+    product = _find_product(name)
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    preview_bids = {
+        "닌텐도 스위치 라이트": [165000, 160000, 152000, 140000, 120000],
+        "아이패드 에어 5세대 64GB": [435000, 430000, 420000, 410000, 400000],
+        "필름 카메라 올림푸스 뮤2": [120000, 115000, 110000, 100000, 90000],
+        "이케아 스탠드 조명": [],
+    }
+
+    amounts = preview_bids.get(name, []) if int(product["price"]) > 0 else []
+
+    users = ["po***", "ew***", "cs***", "ha***", "ar***"]
+    dates = ["11.02 20:51", "11.02 18:05", "11.01 23:11",
+             "10.31 22:47", "10.30 19:31"]
+
+    bids = [
+        {"bidder": user, "price": amount, "date": date}
+        for user, amount, date in zip(users, amounts, dates)
+    ]
+    if bids and session.get("id") == product["seller"]:
+        bids[0]["bidder"] = "posco_23"
+
+    decisions = session.get("auction_decisions", {})
+
+    auction = {
+        "top_price": max(amounts, default=0),
+        "bid_count": len(bids),
+        "decision": decisions.get(name, "pending"),
+        "closed": True,
+        "end_at": product.get("end_at"),
+    }
+
+    deadline = (
+        datetime.fromisoformat(product["end_at"])
+        + timedelta(hours=48)
+    ).isoformat(timespec="seconds")
+
+    return render_template(
+        "auction/end.html",
+        product=product,
+        auction=auction,
+        bids=bids,
+        deadline=deadline,
+    )
+# 채팅 화면 미리보기용 데이터
+PREVIEW_CHAT_ROOMS = [
+    {
+        "id": "room1",
+        "product_name": "컴퓨터구조 및 설계 5판",
+        "seller": "baekkot21",
+        "buyer": "ewhain_sw",
+        "last_message": "네, 월요일 1시에 ECC 앞에서 봬요!",
+        "last_at": "오후 2:14",
+    },
+    {
+        "id": "room2",
+        "product_name": "로지텍 K380 무선 키보드",
+        "seller": "ewhain_sw",
+        "buyer": "pear_blossom",
+        "last_message": "화요일 3시로 약속 신청했어요.",
+        "last_at": "오전 11:40",
+    },
+    {
+        "id": "room3",
+        "product_name": "기숙사용 미니 냉장고",
+        "seller": "hanwoori302",
+        "buyer": "ewhain_sw",
+        "last_message": "혹시 운반은 어떻게 하셨어요?",
+        "last_at": "어제",
+    },
+]
+
+PREVIEW_CHAT_MESSAGES = {
+    "room1": [
+        {
+            "kind": "user",
+            "sender": "ewhain_sw",
+            "text": "안녕하세요! 컴퓨터구조 책 아직 판매 중인가요?",
+            "created_at": "오후 2:05",
+        },
+        {
+            "kind": "user",
+            "sender": "baekkot21",
+            "text": "네, 아직 있어요. 필기는 1~4장에만 연필로 조금 있습니다.",
+            "created_at": "오후 2:07",
+        },
+        {
+            "kind": "user",
+            "sender": "ewhain_sw",
+            "text": "좋아요. 월요일 1시 ECC 앞으로 약속 신청할게요.",
+            "created_at": "오후 2:10",
+        },
+    ],
+    "room2": [
+        {
+            "kind": "user",
+            "sender": "pear_blossom",
+            "text": "화요일 3시로 약속 신청했어요.",
+            "created_at": "오전 11:40",
+        },
+    ],
+    "room3": [
+        {
+            "kind": "user",
+            "sender": "ewhain_sw",
+            "text": "혹시 운반은 어떻게 하셨어요?",
+            "created_at": "어제",
+        },
+    ],
+}
+
+PREVIEW_CHAT_REQUEST = {
+    "kind": "system",
+    "sender": None,
+    "title": "약속을 신청했어요",
+    "text": "구매자가 약속을 신청했어요.",
+    "detail": "ECC 앞 / 10.12 (월) 13:00",
+    "created_at": "",
+}
+
+PREVIEW_CHAT_ACCEPT = {
+    "kind": "system",
+    "sender": None,
+    "title": "약속이 확정됐어요",
+    "text": "판매자가 약속을 수락했어요.",
+    "detail": "ECC 앞 / 10.12 (월) 13:00",
+    "created_at": "",
+}
+
+PREVIEW_CHAT_REPLY = {
+    "kind": "user",
+    "sender": "baekkot21",
+    "text": "네, 월요일 1시에 ECC 앞에서 봬요!",
+    "created_at": "오후 2:14",
+}
+
+
+def chat_room():
+    if not session.get("id"):
+        return redirect(url_for("auth_login"))
+
+    login_id = session.get("id")
+
+    rooms = [
+        dict(r) for r in PREVIEW_CHAT_ROOMS
+        if login_id in (r["seller"], r["buyer"])
+    ]
+
+    # 세 가지 화면 상태를 확인하기 위한 미리보기 옵션
+    mode = request.values.get("mode", "before")
+
+    if mode not in ("before", "requested", "accepted"):
+        mode = "before"
+
+    # 미리보기에서 전송한 메시지
+    sent_messages = session.get("preview_chat_messages", {})
+
+    if request.method == "POST":
+        room_id = request.form.get("room_id")
+        text = request.form.get("text", "").strip()
+
+        room = next(
+            (r for r in rooms if r["id"] == room_id),
+            None
+        )
+
+        if room and text:
+            now = datetime.now()
+            period = "오전" if now.hour < 12 else "오후"
+            hour = now.hour % 12 or 12
+
+            sent_messages.setdefault(room_id, []).append({
+                "kind": "user",
+                "sender": login_id,
+                "text": text,
+                "created_at": f"{period} {hour}:{now.minute:02d}",
+            })
+
+            session["preview_chat_messages"] = sent_messages
+
+        return redirect(
+            url_for("chat_room", room_id=room_id, mode=mode)
+        )
+
+    # 전송한 메시지를 채팅방 목록에도 반영
+    for item in rooms:
+        extra = sent_messages.get(item["id"], [])
+
+        if extra:
+            item["last_message"] = extra[-1]["text"]
+            item["last_at"] = extra[-1]["created_at"]
+
+    room_id = request.args.get("room_id")
+
+    room = next(
+        (r for r in rooms if r["id"] == room_id),
+        rooms[0] if rooms else None
+    )
+
+    product = None
+    messages = []
+    reservation = None
+
+    if room:
+        product = _find_product(room["product_name"])
+        messages = list(
+            PREVIEW_CHAT_MESSAGES.get(room["id"], [])
+        )
+
+        if room["id"] == "room1":
+            if mode == "before":
+                    messages = messages[:2]
+                    reservation = None
+            elif mode == "requested":
+                messages.append(PREVIEW_CHAT_REQUEST)
+                reservation = {"state": "pending"}
+            elif mode == "accepted":
+                messages.extend([
+                    PREVIEW_CHAT_REQUEST,
+                    PREVIEW_CHAT_REPLY,
+                    PREVIEW_CHAT_ACCEPT,
+                ])
+                reservation = {"state": "confirmed"}
+            
+            if product:
+                product = dict(
+                    product,
+                    sale_status="hold" if mode == "accepted" else "sale"
+                )
+    
+        if room["id"] == "room2" and mode == "requested":
+            reservation = {"state": "pending"}
+
+        messages.extend(
+            sent_messages.get(room["id"], [])
+        )
+
+    return render_template(
+        "chat/room.html",
+        rooms=rooms,
+        room=room,
+        product=product,
+        messages=messages,
+        reservation=reservation,
+        mode=mode,
+    )
+
+
+chat_room.methods = ["GET", "POST"]
 
 # 더미 데이터나 POST 처리가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
@@ -435,6 +689,8 @@ CUSTOM_VIEWS = {
     "review_detail": review_detail,
     "auth_login": auth_login,
     "auth_signup": auth_signup,
+    "auction_end": auction_end,
+    "chat_room": chat_room,
 }
 
 
@@ -458,6 +714,108 @@ for path, endpoint, template in SCREENS:
 app.add_url_rule("/product/reserve", "product_reserve", product_reserve, methods=["POST"])
 app.add_url_rule("/product/like", "product_like", product_like, methods=["POST"])
 
+@app.route("/auction/decide", methods=["POST"])
+def auction_decide():
+    name = request.form.get("name", "")
+    decision = request.form.get("decision", "")
+    product = _find_product(name)
+
+    if not session.get("id"):
+        return redirect(url_for("auth_login"))
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    if session.get("id") != product["seller"]:
+        flash("판매자만 거래를 결정할 수 있어요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    decisions = session.get("auction_decisions", {})
+
+    if decisions.get(name, "pending") != "pending":
+        flash("이미 결정된 경매예요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if decision not in ("accepted", "rejected"):
+        flash("올바른 거래 상태를 선택해 주세요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if decision == "accepted" and int(product["price"]) == 0:
+        flash("받은 제안이 없어요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    decisions[name] = decision
+    session["auction_decisions"] = decisions
+
+    if decision == "accepted":
+        product["sale_status"] = "hold"
+        flash("거래가 확정됐어요.")
+    else:
+        flash("이번 제안으로는 거래하지 않아요.")
+
+    return redirect(url_for("auction_end", name=name))
+
+@app.route("/auction/reopen", methods=["POST"])
+def auction_reopen():
+    name = request.form.get("name", "")
+    mode = request.form.get("mode", "")
+    product = _find_product(name)
+
+    if not session.get("id"):
+        return redirect(url_for("auth_login"))
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    decisions = session.get("auction_decisions", {})
+
+    if session.get("id") != product["seller"] or decisions.get(name) != "rejected":
+        flash("다시 올릴 수 없는 경매예요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if mode == "bid":
+        duration_days = _int(request.form.get("duration_days"))
+
+        if duration_days not in (1, 3, 5, 7):
+            flash("제안 받는 기간을 골라 주세요.", "error")
+            return redirect(url_for("auction_end", name=name))
+
+        product.update(
+            price=0,
+            bid_count=0,
+            end_at=_ends_in(days=duration_days),
+            closed=False,
+            sale_status="sale",
+        )
+
+        decisions[name] = "pending"
+        session["auction_decisions"] = decisions
+
+        flash("다시 제안을 받기 시작했어요.")
+        return redirect(url_for("auction_detail", name=name))
+
+    elif mode == "fixed":
+        price = request.form.get("price", "")
+
+        if not price.isdecimal():
+            flash("가격을 숫자로 입력해 주세요.", "error")
+            return redirect(url_for("auction_end", name=name))
+
+        product.update(
+            kind="fixed",
+            price=int(price),
+            sale_status="sale",
+        )
+
+        decisions.pop(name, None)
+        session["auction_decisions"] = decisions
+
+        flash("가격을 정해서 다시 올렸어요.")
+        return redirect(url_for("product_detail", name=name))
+
+    flash("올바른 판매 방식을 선택해 주세요.", "error")
+    return redirect(url_for("auction_end", name=name))
+
 @app.route("/auction/bid", methods=["POST"])
 def auction_bid():
     name = request.form.get("name", "")
@@ -468,6 +826,26 @@ def auction_bid():
 def auth_logout():
     session.pop("id", None)
     return redirect(url_for("product_list"))
+
+
+# 구해요 상세의 제안 보내기·고르기 폼이 url_for로 부르는 라우트. 미리보기에서는 저장하지 않고 상세로 돌아간다
+@app.route("/wanted/offer", methods=["POST"])
+def wanted_offer():
+    flash("미리보기에서는 실제 제안이 저장되지 않습니다.")
+    return redirect(url_for("wanted_detail", id=request.form.get("wanted_id", "")))
+
+
+@app.route("/wanted/pick", methods=["POST"])
+def wanted_pick():
+    flash("미리보기에서는 고른 제안이 저장되지 않습니다.")
+    return redirect(url_for("wanted_detail", id=request.form.get("wanted_id", "")))
+
+
+# 마이페이지 약속 탭의 수락·거절 폼이 url_for로 부르는 라우트. 미리보기에서는 저장하지 않고 마이페이지로 돌아간다
+@app.route("/reservation/decide", methods=["POST"])
+def reservation_decide():
+    flash("미리보기에서는 약속 수락·거절이 저장되지 않습니다.")
+    return redirect(url_for("my_index", tab="deals"))
 
 
 @app.route("/dev/components")
