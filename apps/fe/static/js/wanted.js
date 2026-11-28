@@ -1,26 +1,22 @@
 // 구해요(wanted) 도메인 전용 동작
 
-// 1. 구해요 목록: 분류 칩 변경 시 카드 필터링
+// 칩 값을 쿼리에 넣어 같은 화면을 다시 불러온다. 기본값이면 쿼리에서 뺀다. 페이지 번호는 1로 돌린다
+const reloadWithParam = (key, value, defaultValue) => {
+  const url = new URL(window.location.href);
+  if (!value || value === defaultValue) {
+    url.searchParams.delete(key);
+  } else {
+    url.searchParams.set(key, value);
+  }
+  url.searchParams.delete('page');
+  window.location.href = url.toString();
+};
+
+// 1. 구해요 목록: 분류 칩을 바꾸면 ?category= 로 다시 불러와 BE가 거른다
 const categoryGroup = document.getElementById('wantedCategoryChips');
 if (categoryGroup) {
-  const cards = [...document.querySelectorAll('[data-wanted-card]')];
-  const emptyBox = document.getElementById('wantedEmpty');
-
-  const filterWantedCards = (selectedCategory) => {
-    let visibleCount = 0;
-    cards.forEach((card) => {
-      const match = selectedCategory === 'all' || card.dataset.category === selectedCategory;
-      card.hidden = !match;
-      if (match) visibleCount += 1;
-    });
-    if (emptyBox) {
-      emptyBox.hidden = visibleCount > 0;
-    }
-  };
-
   categoryGroup.addEventListener('chipchange', (e) => {
-    const selected = e.detail.values[0] || 'all';
-    filterWantedCards(selected);
+    reloadWithParam('category', e.detail.values[0], 'all');
   });
 }
 
@@ -266,4 +262,198 @@ if (wantedNewForm) {
       budgetInput.value = String(budgetValue);
     }
   });
+}
+
+// 3. 구해요 상세: 제안 사진 업로드, 제안 정렬(?sort=), 제안 보내기 폼 검증
+const wantedDetailRoot = document.getElementById('wantedDetailRoot');
+if (wantedDetailRoot) {
+  const budgetLimit = Number(wantedDetailRoot.dataset.budget) || 0;
+
+  const offerSortChips = document.getElementById('offerSortChips');
+  const offerForm = document.getElementById('offerForm');
+  const oPriceInput = document.getElementById('oPrice');
+  const offerMsgEl = document.getElementById('offerMsg');
+
+  // 제안 사진 업로드 요소
+  const offerPicInput = document.getElementById('offerPicture');
+  const offerPicDropzone = document.getElementById('offerPicDropzone');
+  const offerPicPreviewBox = document.getElementById('offerPicPreviewBox');
+  const offerPicPreviewImg = document.getElementById('offerPicPreviewImg');
+  const offerPicFileName = document.getElementById('offerPicFileName');
+  const offerPicFileSize = document.getElementById('offerPicFileSize');
+  const offerPicChangeBtn = document.getElementById('offerPicChangeBtn');
+  const offerPicClearBtn = document.getElementById('offerPicClearBtn');
+  const offerPicMsg = document.getElementById('offerPicture-msg');
+
+  const MAX_OFFER_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ALLOWED_OFFER_TYPES = ['image/jpeg', 'image/png'];
+
+  const showOfferPicError = (msg) => {
+    if (!offerPicMsg) return;
+    if (msg) {
+      offerPicMsg.textContent = msg;
+      offerPicMsg.setAttribute('role', 'alert');
+      offerPicMsg.hidden = false;
+    } else {
+      offerPicMsg.textContent = '';
+      offerPicMsg.removeAttribute('role');
+      offerPicMsg.hidden = true;
+    }
+  };
+
+  const resetOfferPicture = () => {
+    if (offerPicInput) offerPicInput.value = '';
+    if (offerPicPreviewImg) offerPicPreviewImg.src = '';
+    if (offerPicPreviewBox) offerPicPreviewBox.hidden = true;
+    if (offerPicDropzone) offerPicDropzone.hidden = false;
+    showOfferPicError('');
+  };
+
+  const formatOfferBytes = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const handleOfferPictureFile = (file) => {
+    if (!file) return;
+    const extOk = /\.(jpe?g|png)$/i.test(file.name);
+    if (!ALLOWED_OFFER_TYPES.includes(file.type) && !extOk) {
+      resetOfferPicture();
+      showOfferPicError('JPG 또는 PNG 파일만 올릴 수 있어요.');
+      return;
+    }
+    if (file.size > MAX_OFFER_FILE_SIZE) {
+      resetOfferPicture();
+      showOfferPicError('5MB 이하의 이미지만 올릴 수 있어요.');
+      return;
+    }
+
+    showOfferPicError('');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (offerPicPreviewImg) offerPicPreviewImg.src = ev.target.result;
+      if (offerPicFileName) offerPicFileName.textContent = file.name;
+      if (offerPicFileSize) offerPicFileSize.textContent = formatOfferBytes(file.size);
+      if (offerPicDropzone) offerPicDropzone.hidden = true;
+      if (offerPicPreviewBox) offerPicPreviewBox.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  if (offerPicDropzone && offerPicInput) {
+    offerPicDropzone.addEventListener('click', () => offerPicInput.click());
+    offerPicDropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        offerPicInput.click();
+      }
+    });
+
+    ['dragenter', 'dragover'].forEach((evt) => {
+      offerPicDropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        offerPicDropzone.classList.add('border-brandink', 'bg-tint');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((evt) => {
+      offerPicDropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        offerPicDropzone.classList.remove('border-brandink', 'bg-tint');
+      });
+    });
+
+    offerPicDropzone.addEventListener('drop', (e) => {
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file) return;
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      offerPicInput.files = dt.files;
+      handleOfferPictureFile(file);
+    });
+
+    offerPicInput.addEventListener('change', () => {
+      const file = offerPicInput.files && offerPicInput.files[0];
+      if (file) handleOfferPictureFile(file);
+    });
+  }
+
+  if (offerPicChangeBtn && offerPicInput) {
+    offerPicChangeBtn.addEventListener('click', () => offerPicInput.click());
+  }
+
+  if (offerPicClearBtn) {
+    offerPicClearBtn.addEventListener('click', () => resetOfferPicture());
+  }
+
+  const formatWon = (n) => `${Number(n).toLocaleString('ko-KR')}원`;
+
+  const setOfferInputError = (inputEl, message) => {
+    if (!inputEl) return;
+    const msgEl = document.getElementById(`${inputEl.id}-msg`);
+    if (message) {
+      inputEl.setAttribute('aria-invalid', 'true');
+      if (msgEl) {
+        msgEl.textContent = message;
+        msgEl.className = 'error';
+        msgEl.hidden = false;
+      }
+    } else {
+      inputEl.removeAttribute('aria-invalid');
+      if (msgEl) {
+        msgEl.textContent = '';
+        msgEl.hidden = true;
+      }
+    }
+  };
+
+  if (offerSortChips) {
+    offerSortChips.addEventListener('chipchange', (e) => {
+      reloadWithParam('sort', e.detail.values[0], 'low');
+    });
+  }
+
+  if (oPriceInput) {
+    oPriceInput.addEventListener('input', () => {
+      const rawDigits = oPriceInput.value.replace(/[^0-9]/g, '');
+      if (!rawDigits) {
+        oPriceInput.value = '';
+        return;
+      }
+      if (/^0/.test(rawDigits)) {
+        oPriceInput.value = '';
+        setOfferInputError(oPriceInput, '제안 금액은 0으로 시작할 수 없어요.');
+        return;
+      }
+      oPriceInput.value = Number(rawDigits).toLocaleString('ko-KR');
+      setOfferInputError(oPriceInput, '');
+    });
+  }
+
+  if (offerForm) {
+    offerForm.addEventListener('submit', (e) => {
+      const rawPrice = oPriceInput ? oPriceInput.value.replace(/[^0-9]/g, '') : '';
+      const priceVal = rawPrice ? Number(rawPrice) : 0;
+
+      if (/^0/.test(rawPrice) || priceVal <= 0 || (budgetLimit > 0 && priceVal > budgetLimit)) {
+        e.preventDefault();
+        const limitMsg = budgetLimit > 0
+          ? `예산(${formatWon(budgetLimit)}) 이하로 제안해 주세요.`
+          : '1원 이상 올바른 금액으로 제안해 주세요.';
+        setOfferInputError(oPriceInput, limitMsg);
+        if (offerMsgEl) {
+          offerMsgEl.className = 'text-sm text-stamp';
+          offerMsgEl.textContent = limitMsg;
+        }
+        if (oPriceInput) oPriceInput.focus();
+        return;
+      }
+
+      setOfferInputError(oPriceInput, '');
+      if (oPriceInput) {
+        oPriceInput.value = String(priceVal);
+      }
+    });
+  }
 }

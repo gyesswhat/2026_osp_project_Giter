@@ -1,0 +1,275 @@
+{#
+  구해요 상세 (wanted_detail, GET /wanted/detail/<id>)
+  BE가 넘기는 값 (ROUTES.md, PR #67 BE 코멘트)
+  - post: id, writer, name, category, budget, condition, due_date, places, description, img_path,
+          state(open|done), picked_offer_id(고르기 전에는 빈 문자열), offer_count, date
+  - offers: 제안 목록. 각 제안은 id, seller, price, description, place, img_path, rating, date
+            쿼리 sort(low 기본 | new)에 맞춰 BE가 정렬해서 넘긴다
+  - is_writer: 로그인한 사용자가 글쓴이인지 (True면 고르기 버튼 표시)
+  분류(category)·상태(condition)는 코드값으로 받고 화면 문구는 아래에서 바꾼다.
+  제안 보내기 → wanted_offer, 제안 고르기 → wanted_pick (둘 다 처리 후 이 화면으로 redirect)
+  값이 없으면(미리보기) 아래 더미 데이터를 쓴다.
+#}
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button, chip_group, input, select %}
+{% from "components/_product_card.html" import won %}
+{% set active_tab = 'wanted' %}
+
+{% set default_post = {
+  'id': 'preview',
+  'writer': 'os_study',
+  'name': '운영체제 10판 구해요',
+  'category': 'book',
+  'budget': 20000,
+  'condition': 'light_use',
+  'due_date': '2026-12-10',
+  'places': ['아산공학관', 'ECC'],
+  'description': '다음 주 운영체제 수업부터 필요해요. 영문판도 괜찮고, 형광펜은 적을수록 좋아요. 사진 같이 보내 주시면 바로 확인할게요.',
+  'img_path': '',
+  'state': 'open',
+  'picked_offer_id': '',
+  'offer_count': 4,
+  'date': '2026.11.26'
+} %}
+{% set p = post if post is defined else default_post %}
+
+{% block title %}{{ p.name }} | BoughtIT{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/wanted.css') }}">{% endblock %}
+
+{% block content %}
+  {% set default_offers = [
+    {'id': 'o1', 'seller': 'baekkot21', 'price': 15000, 'description': '1~5장 연필 필기, 형광펜 없음. 표지 모서리 조금 닳음', 'place': 'ECC', 'img_path': '', 'rating': 4.9, 'date': '2026.11.27', 'created_at': '2026-11-27T20:14:00+09:00'},
+    {'id': 'o2', 'seller': 'cse_gyu', 'price': 18000, 'description': '거의 새것. 비닐만 뜯고 한 학기 썼어요', 'place': '아산공학관', 'img_path': '', 'rating': 4.7, 'date': '2026.11.27', 'created_at': '2026-11-27T17:40:00+09:00'},
+    {'id': 'o3', 'seller': 'os_master', 'price': 12000, 'description': '영문판, 형광펜 필기 많음', 'place': '', 'img_path': '', 'rating': none, 'date': '2026.11.27', 'created_at': '2026-11-27T15:02:00+09:00'},
+    {'id': 'o4', 'seller': 'ewha_ink', 'price': 20000, 'description': '새 책 그대로. 수업 바뀌어서 안 썼어요', 'place': 'ECC', 'img_path': '', 'rating': 5.0, 'date': '2026.11.26', 'created_at': '2026-11-26T22:31:00+09:00'}
+  ] %}
+  {% set category_text = {'book': '도서', 'digital': '전자기기', 'dorm': '생활용품', 'etc': '기타'} %}
+  {% set condition_text = {'like_new': '거의 새것만', 'light_use': '사용감 조금', 'any': '상태 상관없음'} %}
+  {% set sort_options = [('low', '낮은 가격순'), ('new', '최신순')] %}
+
+  {% set current_sort = sort if sort is defined else request.args.get('sort', 'low') %}
+  {% if current_sort not in ('low', 'new') %}{% set current_sort = 'low' %}{% endif %}
+
+  {# 실제 제안은 BE가 정렬해서 넘긴다. 미리보기 더미만 여기서 정렬한다 #}
+  {% if offers is defined %}
+    {% set offer_items = offers %}
+  {% elif current_sort == 'new' %}
+    {% set offer_items = default_offers | sort(attribute='created_at', reverse=true) %}
+  {% else %}
+    {% set offer_items = default_offers | sort(attribute='price') %}
+  {% endif %}
+
+  {% set mine = is_writer if is_writer is defined else (session.get('id') and session.get('id') == p.writer) %}
+  {% set picked_id = p.picked_offer_id or none %}
+  {% set is_done = p.state == 'done' %}
+  {% set due = p.due_date or '' %}
+  {% set due_text = (due[5:7] ~ '.' ~ due[8:10] ~ '까지') if due | length >= 10 else due %}
+  {% set place_list = p.places or [] %}
+  {% set post_src = url_for('static', filename='uploads/' ~ p.img_path) if p.img_path else none %}
+
+  <a href="{{ url_for('wanted_list') }}" class="text-sm text-muted hover:text-ink">구해요 목록으로</a>
+
+  <div id="wantedDetailRoot"
+       class="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:gap-12"
+       data-budget="{{ p.budget }}">
+
+    {# 왼쪽: 구해요 본문 + 제안 보내기(글쓴이가 아니고 아직 구하는 중일 때만 표시) #}
+    <div class="min-w-0">
+      {% if is_done %}
+        <span class="tag-sale">구했어요</span>
+      {% else %}
+        <span class="tag-hold">구하는 중</span>
+      {% endif %}
+
+      <h1 class="page-title mt-3">{{ p.name }}</h1>
+      <p class="num mt-3 text-[28px] leading-none text-brandink">예산 {{ won(p.budget) }}까지</p>
+
+      <div class="mt-6 space-y-2 border-y border-dashed border-line py-4 text-[15px]">
+        <div class="row">
+          <span class="text-muted">글쓴이</span><span class="leader"></span>
+          <span class="font-semibold">{{ p.writer }}</span>
+        </div>
+        <div class="row">
+          <span class="text-muted">분류</span><span class="leader"></span>
+          <span>{{ category_text.get(p.category, '기타') }}</span>
+        </div>
+        <div class="row">
+          <span class="text-muted">원하는 상태</span><span class="leader"></span>
+          <span>{{ condition_text.get(p.condition, '상태 상관없음') }}</span>
+        </div>
+        <div class="row">
+          <span class="text-muted">필요한 날</span><span class="leader"></span>
+          <span class="font-mono">{{ due_text }}</span>
+        </div>
+        <div class="row">
+          <span class="text-muted">거래 장소</span><span class="leader"></span>
+          <span>{{ place_list | join(', ') }}</span>
+        </div>
+        {% if p.date %}
+          <div class="row">
+            <span class="text-muted">올린 날</span><span class="leader"></span>
+            <span class="font-mono">{{ p.date }}</span>
+          </div>
+        {% endif %}
+      </div>
+
+      {% if p.description %}
+        <p class="mt-5 max-w-prose">{{ p.description }}</p>
+      {% endif %}
+
+      {% if post_src %}
+        <img src="{{ post_src }}" alt="{{ p.name }} 참고 사진" class="mt-5 max-h-72 w-auto rounded-sm border border-line object-cover">
+      {% endif %}
+
+      {% if not mine and not is_done %}
+        <form id="offerForm" method="post" action="{{ url_for('wanted_offer') }}" enctype="multipart/form-data" class="panel mt-6 space-y-4 p-4" novalidate>
+          <input type="hidden" name="wanted_id" value="{{ p.id }}">
+          <p class="font-bold">갖고 있나요? 제안 보내기</p>
+
+          {{ input(
+            'price',
+            '제안 금액',
+            id='oPrice',
+            placeholder=('{:,} 이하'.format(p.budget | int)),
+            suffix='원',
+            required=true,
+            class='max-w-xs',
+            attrs={'inputmode': 'numeric', 'autocomplete': 'off'}
+          ) }}
+
+          {{ input(
+            'description',
+            '물건 상태',
+            id='oDesc',
+            placeholder='예: 3장까지 연필 필기, 표지 깨끗',
+            attrs={'autocomplete': 'off'}
+          ) }}
+
+          {% if place_list %}
+            {# 글쓴이가 고른 장소 중 하나. 선택 입력이라 빈 값으로 되돌릴 수 있게 placeholder 대신 빈 옵션을 둔다 #}
+            {% set ns = namespace(options=[('', '고르지 않음')]) %}
+            {% for pl in place_list %}{% set ns.options = ns.options + [(pl, pl)] %}{% endfor %}
+            {{ select(
+              'place',
+              ns.options,
+              label='거래 장소',
+              optional=true,
+              id='oPlace',
+              class='max-w-xs'
+            ) }}
+          {% endif %}
+
+          <div>
+            <label class="label" for="offerPicture">물건 사진 <span class="font-normal text-muted">(선택)</span></label>
+            <input id="offerPicture" name="picture" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" class="sr-only" aria-describedby="offerPicture-msg">
+
+            <div id="offerPicDropzone" role="button" tabindex="0"
+                 class="flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded border-2 border-dashed border-line bg-bg px-4 py-6 text-center transition-colors hover:border-brandink focus-visible:border-brandink">
+              <span class="text-sm font-semibold text-brandink">사진 업로드</span>
+              <span class="text-xs text-muted">눌러서 고르기 또는 끌어다 놓기 (JPG, PNG, 5MB 이하)</span>
+            </div>
+
+            <div id="offerPicPreviewBox" class="rounded border border-dashed border-line bg-bg p-3" hidden>
+              <div class="flex flex-wrap items-center gap-3">
+                <img id="offerPicPreviewImg" src="" alt="선택한 제안 물건 사진 미리보기" class="h-20 w-20 shrink-0 rounded-sm border border-line object-cover">
+                <div class="min-w-0 flex-1">
+                  <p id="offerPicFileName" class="truncate text-sm font-semibold"></p>
+                  <p id="offerPicFileSize" class="mt-0.5 font-mono text-xs text-muted"></p>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    {{ button('다른 사진', variant='outline', class='py-1 text-xs', attrs={'id': 'offerPicChangeBtn'}) }}
+                    {{ button('지우기', variant='quiet', class='py-1 text-xs', attrs={'id': 'offerPicClearBtn'}) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p id="offerPicture-msg" class="error" hidden></p>
+          </div>
+
+          {{ button('제안 보내기', variant='primary', type='submit') }}
+          <p id="offerMsg" class="text-sm text-muted" role="status"></p>
+        </form>
+      {% endif %}
+    </div>
+
+    {# 오른쪽: 받은 제안 목록 #}
+    <div class="panel min-w-0 p-5 sm:p-7">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="text-xl font-extrabold tracking-tight">
+          받은 제안 <span class="num text-brandink">{{ offer_items | length }}</span>
+        </h2>
+        {% if mine and not is_done %}
+          <p class="text-sm text-muted">마음에 드는 제안을 하나 골라 주세요</p>
+        {% else %}
+          <p class="text-sm text-muted">지금까지 들어온 제안 목록이에요</p>
+        {% endif %}
+      </div>
+
+      {# 칩을 바꾸면 wanted.js가 ?sort= 를 바꿔 다시 불러온다 #}
+      <div class="mt-3">
+        {{ chip_group('sort', sort_options, selected=current_sort, label='정렬', sr_label=true, required=true, id='offerSortChips') }}
+      </div>
+
+      <ul class="mt-4 space-y-4">
+        {% for o in offer_items %}
+          {% set is_chosen = picked_id is not none and (picked_id | string) == (o.id | string) %}
+          {% set is_dimmed = picked_id is not none and not is_chosen %}
+          {% set o_src = url_for('static', filename='uploads/' ~ o.img_path) if o.img_path else none %}
+          <li class="slip wanted-offer-card p-4 {{ 'opacity-50' if is_dimmed }}">
+            <div class="flex gap-4">
+              <span class="ph relative h-16 w-16 shrink-0 overflow-hidden rounded-sm">
+                {% if o_src %}
+                  <img src="{{ o_src }}" alt="" loading="lazy" class="h-full w-full object-cover">
+                {% else %}
+                  <span class="center text-[11px] text-muted">이미지 없음</span>
+                {% endif %}
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  <span class="break-all font-semibold">{{ o.seller }}</span>
+                  {% if o.rating %}
+                    <span class="shrink-0 whitespace-nowrap text-xs text-muted">★ {{ '%.1f' | format(o.rating | float) }}</span>
+                  {% endif %}
+                </div>
+                <div class="row mt-1">
+                  <span class="text-xs text-muted">제안가</span>
+                  <span class="leader"></span>
+                  <span class="num shrink-0 whitespace-nowrap text-[17px] text-brandink">{{ won(o.price) }}</span>
+                </div>
+                {% if o.description %}
+                  <p class="mt-1.5 text-sm">{{ o.description }}</p>
+                {% endif %}
+                <p class="mt-1 flex flex-wrap justify-between gap-2 text-xs text-muted">
+                  <span>{{ o.place or '장소 협의' }}</span>
+                  <span class="font-mono">{{ o.date }}</span>
+                </p>
+              </div>
+            </div>
+
+            {% if is_chosen %}
+              <div class="mt-3 flex items-center border-t border-dashed border-line pt-3">
+                <span class="stamp solid blue in">{{ '이걸로 할게요' if mine else '이걸로 정해졌어요' }}</span>
+              </div>
+            {% elif mine and not is_done %}
+              <form method="post" action="{{ url_for('wanted_pick') }}" class="mt-3 flex justify-end border-t border-dashed border-line pt-3">
+                <input type="hidden" name="wanted_id" value="{{ p.id }}">
+                <input type="hidden" name="offer_id" value="{{ o.id }}">
+                {{ button('이 제안 고르기', variant='outline', type='submit', class='py-1.5') }}
+              </form>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+
+      {% if not offer_items %}
+        <p class="tear mt-4 pt-6 text-center text-sm text-muted">
+          아직 들어온 제안이 없어요. 첫 제안을 기다리고 있어요.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/wanted.js') }}"></script>
+{% endblock %}

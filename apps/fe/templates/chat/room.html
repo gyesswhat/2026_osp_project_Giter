@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% from "components/_form_fields.html" import button %}
+
+{% set active_tab = 'chat' %}
+{% set login_id = session.get('id') %}
+
+{% block title %}채팅 | BoughtIT{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<h1 class="page-title">채팅</h1>
+
+<div class="chat-layout panel mt-6">
+
+    {# 왼쪽 채팅방 목록 #}
+    <aside class="chat-sidebar" aria-label="채팅방 목록">
+
+        {% for item in rooms %}
+        {% set partner = item.buyer if item.seller == login_id else item.seller %}
+
+        <a href="{{ url_for('chat_room', room_id=item.id, mode=mode) if mode is defined else url_for('chat_room', room_id=item.id) }}"
+            class="chat-room-item {% if room and item.id == room.id %}is-active{% endif %}" {% if room and
+            item.id==room.id %}aria-current="page" {% endif %}>
+
+            <div class="min-w-0 w-full">
+
+                <div class="flex items-center justify-between gap-2">
+                    <span class="truncate font-bold">
+                        {{ partner }}
+                    </span>
+
+                    <span class="chat-list-time">
+                        {{ item.last_at or '' }}
+                    </span>
+                </div>
+
+                <p class="chat-list-product truncate">
+                    {{ item.product_name or item.wanted_title or '구해요 거래' }}
+                </p>
+
+                <p class="chat-list-message truncate">
+                    {{ item.last_message or '새로운 채팅방이에요.' }}
+                </p>
+
+            </div>
+
+        </a>
+
+        {% else %}
+        <p class="p-4 text-sm text-muted">
+            아직 채팅방이 없어요.
+        </p>
+        {% endfor %}
+
+    </aside>
+
+    {# 오른쪽 채팅 화면 #}
+    {% if room %}
+
+    <section class="chat-main">
+
+        {# 상품 정보 #}
+        <div class="chat-product">
+
+            <div class="chat-product-image ph" aria-hidden="true"></div>
+
+            <div class="min-w-0 flex-1">
+
+                <p class="truncate font-bold">
+                    {{ room.product_name or room.wanted_title or '구해요 거래' }}
+                </p>
+
+                {% if product %}
+                <p class="chat-product-price num">
+                    {{ "{:,}".format(product.price | int) }}원
+                </p>
+                {% endif %}
+
+            </div>
+
+            {% if product %}
+            {% if product.sale_status == 'hold' %}
+            <span class="tag-hold">예약중</span>
+            {% elif product.sale_status == 'done' %}
+            <span class="tag-done">거래완료</span>
+            {% else %}
+            <span class="tag-sale">판매중</span>
+            {% endif %}
+            {% endif %}
+
+        </div>
+
+        {# 판매자, 구매자 및 약속 버튼 #}
+        <div class="chat-actions">
+
+            <div class="chat-participants">
+
+                <span class="chat-seller">
+                    판매자 {{ '나' if room.seller == login_id else room.seller }}
+                </span>
+
+                <span class="chat-buyer">
+                    구매자 {{ '나' if room.buyer == login_id else room.buyer }}
+                </span>
+
+            </div>
+
+            <div class="chat-action-buttons">
+                {{ button('약속 신청', disabled=(room.buyer != login_id or (reservation and reservation.state !=
+                'rejected'))) }}
+                {{ button('약속 수락', disabled=(not reservation or reservation.state != 'pending' or
+                room.seller !=
+                login_id)) }}
+            </div>
+        </div>
+
+        {# 메시지 목록 #}
+        <div id="chatMessages" class="chat-messages">
+
+            {% for message in messages %}
+
+            {% if message.kind == 'system' %}
+
+            <div class="chat-system">
+
+                <div class="chat-system-card slip">
+
+                    {% if message.title %}
+                    <p class="chat-system-title">
+                        {{ message.title }}
+                    </p>
+                    {% endif %}
+
+                    <p class="chat-system-text">
+                        {{ message.text }}
+                    </p>
+
+                    {% if message.detail %}
+                    <p class="chat-system-detail">
+                        {{ message.detail }}
+                    </p>
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+            {% else %}
+
+            {% set is_mine = message.sender == login_id %}
+
+            <div class="chat-message-row {{ 'is-mine' if is_mine else 'is-other' }}">
+
+                <div class="chat-bubble">
+                    {{ message.text }}
+                </div>
+
+                <span class="chat-time">
+                    {{ message.created_at }}
+                </span>
+
+            </div>
+
+            {% endif %}
+
+            {% else %}
+
+            <p class="py-8 text-center text-sm text-muted">
+                첫 메시지를 보내 보세요.
+            </p>
+
+            {% endfor %}
+
+        </div>
+
+        {# 메시지 입력 폼 #}
+        <form class="chat-compose" method="post" action="{{ url_for('chat_room') }}">
+
+            <input type="hidden" name="room_id" value="{{ room.id }}">
+            {% if mode is defined %}
+            <input type="hidden" name="mode" value="{{ mode }}">
+            {% endif %}
+
+            <input class="field chat-input" type="text" name="text" placeholder="메시지를 입력하세요" aria-label="메시지"
+                autocomplete="off" required>
+
+            {{ button('보내기', type='submit', class='shrink-0') }}
+
+        </form>
+
+    </section>
+
+    {% else %}
+
+    <section class="chat-empty">
+        <p class="text-muted">
+            대화할 채팅방을 선택해 주세요.
+        </p>
+    </section>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const chatMessages = document.getElementById('chatMessages');
+
+    if (chatMessages) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+</script>
+{% endblock %}

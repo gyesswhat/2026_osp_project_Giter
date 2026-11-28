@@ -9,3 +9,4 @@ authentication/
 /docs/
 # macOS 폴더 설정 파일 (모든 폴더)
 .DS_Store
+.env
