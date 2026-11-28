@@ -3,6 +3,9 @@ venv/
 __pycache__/
 static/uploads/*
 !static/uploads/.gitkeep
+apps/fe/static/uploads/*
+!apps/fe/static/uploads/.gitkeep
+apps/be/demo/backup/
 .omc/
 *.pdf
 authentication/

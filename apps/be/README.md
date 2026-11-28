@@ -25,6 +25,7 @@ apps/be/
 ├─ app.py          # 실행 파일. 라우트 모듈을 import한다
 ├─ core.py         # Flask 앱(app), Firebase 연결(db), 공통 함수
 ├─ dummy.py        # 더미 데이터. DB 로직으로 교체한 뒤 삭제한다
+├─ demo/           # 발표 데모용 데이터와 DB 초기화 스크립트 (demo/README.md)
 └─ routes/         # 도메인별 라우트
    ├─ auth.py      # 회원가입, 로그인, 로그아웃
    ├─ product.py   # 상품 등록, 목록, 상세, 약속 신청
