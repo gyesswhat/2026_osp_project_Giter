@@ -35,7 +35,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 로그아웃 | GET | `/logout` | `auth_logout` | (없음, 목록으로 redirect) | 미리보기 |
 | 채팅 | GET | `/chat` | `chat_room` | `chat/room.html` | 예정 |
 | 구해요 목록 | GET | `/wanted` | `wanted_list` | `wanted/list.html` | 화면 |
-| 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 예정 (화면은 PR #67, BE는 501 스텁) |
+| 구해요 상세 | GET | `/wanted/detail/<id>` | `wanted_detail` | `wanted/detail.html` | 화면 (BE는 501 스텁) |
 | 구해요 글쓰기 | GET, POST | `/wanted/new` | `wanted_new` | `wanted/new.html` | 화면 |
 | 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
 | 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
@@ -180,6 +180,22 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 - 최신순(`created_at` 내림차순)으로 한 페이지에 12개씩 보여 줍니다.
 - DB에 연결하지 못하면 빈 목록입니다.
 
+### `wanted_detail` `/wanted/detail/<id>`
+- 로그인하지 않아도 볼 수 있습니다. 글이 없으면 404
+- 쿼리: `sort` low(낮은 가격순, 기본)·new(최신순). 제안은 BE가 이 순서로 정렬해서 넘깁니다
+- 템플릿에 넘길 값 (`wanted/detail.html`)
+  - `post`: `id, writer, name, category, budget, condition, due_date, places, description, img_path, state, picked_offer_id, offer_count, date`
+    - `places`는 리스트, `picked_offer_id`는 고르기 전에 빈 문자열, `date`는 올린 날(예: `2026.11.26`)
+  - `offers`: 제안 목록. 각 제안은 `id, seller, price, description, place, img_path, rating, date`
+    - `rating`은 판매자 평균 별점(없으면 `None`), `date`는 화면에 보일 날짜 문자열
+  - `is_writer`: 로그인한 사용자가 글쓴이인지
+  - `sort`: 현재 정렬 (넘기지 않으면 템플릿이 쿼리에서 읽습니다)
+- 화면 분기
+  - 글쓴이가 아니고 `state == 'open'`이면 제안 보내기 폼(`wanted_offer`)이 보입니다. `place`는 `post.places` 중에서 고르는 선택 입력입니다
+  - 글쓴이이고 `state == 'open'`이면 제안마다 고르기 폼(`wanted_pick`)이 보입니다
+  - 고른 제안(`id == post.picked_offer_id`)에는 도장이 찍히고, 나머지 제안은 흐리게 보입니다. 다시 고르기·채팅 열기는 없습니다
+- 분류(`category`)와 상태(`condition`)는 코드값으로 넘기고 화면 문구는 템플릿에서 바꿉니다
+
 ### `wanted_new` `/wanted/new`
 - 로그인 필요. 비로그인이면 flash 후 `auth_login`으로 redirect
 - GET: 넘기는 값 없음 (`form`, `errors`는 실패했을 때만)
@@ -297,7 +313,8 @@ BE(`apps/be`)는 이 문서의 라우트 함수 이름과 경로를 그대로 �
 | 리뷰 상세 | 리뷰 목록으로 | `review_list` |
 | 리뷰 작성 | 폼, 취소 | `review_new` `review_list` |
 | 리뷰 등록 완료 | 상품 둘러보기, 리뷰 목록으로 | `product_list` `review_list` |
-| 구해요 목록 | 구해요 글쓰기, 글 카드(지금은 `id` 없이 호출, 상세 화면 연결 때 `id` 추가), 페이지 번호 | `wanted_new` `wanted_detail` `wanted_list` |
+| 구해요 목록 | 구해요 글쓰기, 분류 칩(`?category=`), 글 카드, 페이지 번호 | `wanted_new` `wanted_list` `wanted_detail(id)` |
+| 구해요 상세 | 목록으로, 정렬 칩(`?sort=`), 제안 보내기 폼, 제안 고르기 폼 | `wanted_list` `wanted_detail(id)` `wanted_offer` `wanted_pick` |
 | 구해요 글쓰기 | 폼, 취소 | `wanted_new` `wanted_list` |
 | 로그인 | 폼, 회원가입 | `auth_login` `auth_signup` |
 | 회원가입 | 폼, 로그인 | `auth_signup` `auth_login` |

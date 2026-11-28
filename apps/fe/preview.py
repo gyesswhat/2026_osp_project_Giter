@@ -622,6 +622,19 @@ def auth_logout():
     return redirect(url_for("product_list"))
 
 
+# 구해요 상세의 제안 보내기·고르기 폼이 url_for로 부르는 라우트. 미리보기에서는 저장하지 않고 상세로 돌아간다
+@app.route("/wanted/offer", methods=["POST"])
+def wanted_offer():
+    flash("미리보기에서는 실제 제안이 저장되지 않습니다.")
+    return redirect(url_for("wanted_detail", id=request.form.get("wanted_id", "")))
+
+
+@app.route("/wanted/pick", methods=["POST"])
+def wanted_pick():
+    flash("미리보기에서는 고른 제안이 저장되지 않습니다.")
+    return redirect(url_for("wanted_detail", id=request.form.get("wanted_id", "")))
+
+
 # 마이페이지 약속 탭의 수락·거절 폼이 url_for로 부르는 라우트. 미리보기에서는 저장하지 않고 마이페이지로 돌아간다
 @app.route("/reservation/decide", methods=["POST"])
 def reservation_decide():

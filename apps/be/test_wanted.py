@@ -508,11 +508,11 @@ def test_list_when_and_date_are_empty_when_missing_or_invalid(fake_env, bad):
 
 
 def test_list_with_items_renders_detail_link(fake_env):
-    """wanted_detail 스텁이 있어 카드의 url_for('wanted_detail')이 깨지지 않는다."""
+    """카드는 글 id를 넣어 url_for('wanted_detail', id=...)로 상세에 연결한다 (#67)."""
     seed_wanted(fake_env, "x1", name="공학용 계산기")
     response, _ = get_list()
     html = response.get_data(as_text=True)
-    assert 'href="/wanted/detail"' in html
+    assert 'href="/wanted/detail/x1"' in html
     assert "공학용 계산기" in html
 
 

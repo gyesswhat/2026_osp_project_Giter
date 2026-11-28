@@ -16,8 +16,15 @@
     {'id': 5, 'name': '미대 실기용 이젤', 'category': 'etc', 'budget': 30000, 'offers': 1, 'when': '11.12까지', 'img_path': none, 'state': 'open'},
     {'id': 6, 'name': '토익 LC 1000제', 'category': 'book', 'budget': 8000, 'offers': 3, 'when': '11.01까지', 'img_path': none, 'state': 'done'}
   ] %}
-  {% set wanted_items = items if items is defined else default_items %}
   {% set current_cat = category | default(request.args.get('category', 'all')) %}
+  {# BE는 ?category= 로 이미 거른 items를 넘긴다. 미리보기 더미만 여기서 거른다 #}
+  {% if items is defined %}
+    {% set wanted_items = items %}
+  {% elif current_cat != 'all' %}
+    {% set wanted_items = default_items | selectattr('category', 'equalto', current_cat) | list %}
+  {% else %}
+    {% set wanted_items = default_items %}
+  {% endif %}
   {% set categories = [
     ('all', '전체'),
     ('book', '도서'),
@@ -40,15 +47,10 @@
 
   <div id="wantedGrid" class="mt-7 grid gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
     {% for w in wanted_items %}
-      {% set is_done = (w.state == 'done' or w.sale_status == 'done') %}
-      {% set item_cat = w.category | default('all') %}
-      {% set item_title = w.title | default(w.name) %}
+      {% set is_done = w.state == 'done' %}
       {% set src = url_for('static', filename='uploads/' ~ w.img_path) if w.img_path else none %}
-      <article class="slip min-w-0 {{ 'opacity-70' if is_done }}"
-               data-wanted-card
-               data-category="{{ item_cat }}"
-               {% if current_cat != 'all' and item_cat != current_cat %}hidden{% endif %}>
-        <a href="{{ url_for('wanted_detail') }}" class="flex gap-4 p-4">
+      <article class="slip min-w-0 {{ 'opacity-70' if is_done }}">
+        <a href="{{ url_for('wanted_detail', id=w.id) }}" class="flex gap-4 p-4">
           <span class="ph relative h-20 w-20 shrink-0 overflow-hidden rounded-sm">
             {% if src %}
               <img src="{{ src }}" alt="" loading="lazy" class="h-full w-full object-cover {{ 'opacity-50' if is_done }}">
@@ -62,7 +64,7 @@
             {% else %}
               <span class="tag-hold">구하는 중</span>
             {% endif %}
-            <span class="block break-keep font-semibold leading-snug">{{ item_title }}</span>
+            <span class="block break-keep font-semibold leading-snug">{{ w.name }}</span>
             <span class="row text-sm">
               <span class="text-muted">예산</span>
               <span class="leader"></span>
@@ -78,9 +80,11 @@
     {% endfor %}
   </div>
 
-  <p id="wantedEmpty" class="panel mt-7 p-8 text-center text-muted" {% if wanted_items %}hidden{% endif %}>
-    해당 분류에 올라온 구해요 글이 없어요. 다른 분류를 보거나 먼저 글을 올려 보세요.
-  </p>
+  {% if not wanted_items %}
+    <p class="panel mt-7 p-8 text-center text-muted">
+      해당 분류에 올라온 구해요 글이 없어요. 다른 분류를 보거나 먼저 글을 올려 보세요.
+    </p>
+  {% endif %}
 
   {% if page is defined and total_pages is defined %}
     {{ pagination(page, total_pages, 'wanted_list', category=(current_cat if current_cat != 'all' else none)) }}
