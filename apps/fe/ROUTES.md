@@ -40,7 +40,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 | 구해요 제안 보내기 | POST | `/wanted/offer` | `wanted_offer` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
 | 구해요 제안 고르기 | POST | `/wanted/pick` | `wanted_pick` | (없음, 상세로 redirect) | 처리 (BE 구현, 상세 화면은 PR #67) |
 | 마이페이지 | GET | `/my` | `my_index` | `my/index.html` | 예정 |
-| 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 예정 |
+| 내 상품 관리 | GET | `/my/manage` | `my_manage` | `my/manage.html` | 화면 |
 | 경매 상세 | GET | `/auction/detail/<path:name>` | `auction_detail` | `auction/detail.html` | 화면 |
 | 가격 제안 | POST | `/auction/bid` | `auction_bid` | (redirect) | BE 구현 |
 | 경매 마감 | GET | `/auction/end/<path:name>` | `auction_end` | `auction/end.html` | 예정 (BE 구현, 화면은 #32) |

@@ -422,6 +422,11 @@ def auth_signup():
 auth_login.methods = ["GET", "POST"]
 auth_signup.methods = ["GET", "POST"]
 
+def my_manage():
+    product = _find_product("로지텍 K380 무선 키보드")
+    return render_template("my/manage.html", product=product)
+
+
 def auction_end(name):
     """상품별 경매 마감 화면 미리보기 (실제 DB 저장 없음)"""
     product = _find_product(name)
@@ -484,6 +489,7 @@ CUSTOM_VIEWS = {
     "review_detail": review_detail,
     "auth_login": auth_login,
     "auth_signup": auth_signup,
+    "my_manage": my_manage,
     "auction_end": auction_end,
 }
 
