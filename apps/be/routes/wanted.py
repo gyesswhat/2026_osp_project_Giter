@@ -1,7 +1,4 @@
-"""구해요 라우트: wanted_list, wanted_detail, wanted_new, wanted_offer, wanted_pick
-
-wanted_detail은 아직 501을 반환하는 스텁이다(PR C에서 구현).
-"""
+"""구해요 라우트: wanted_list, wanted_detail, wanted_new, wanted_offer, wanted_pick"""
 
 import math
 import re
@@ -11,6 +8,7 @@ from flask import abort, flash, redirect, render_template, request, session, url
 
 from core import app, db, to_int
 from routes.product import save_picture, validate_picture
+from routes.review import load_reviews, seller_rating
 
 # 분류. 화면: 도서, 전자기기, 생활용품, 기타
 CATEGORIES = ("book", "digital", "dorm", "etc")
@@ -106,11 +104,60 @@ def format_date(created_at):
     return f"{day:%Y.%m.%d}" if day else ""
 
 
-@app.route("/wanted/detail")
 @app.route("/wanted/detail/<id>")
-def wanted_detail(id=None):
-    """구해요 상세 스텁. list.html 카드가 url_for('wanted_detail')을 호출하므로 등록해 둔다. PR B에서 구현한다."""
-    abort(501)
+def wanted_detail(id):
+    """구해요 상세. 로그인 불필요. 쿼리: sort(low 기본 | new)
+
+    id 형식이 틀리거나 글이 없거나 DB에 연결하지 못하면 404.
+    제안은 low면 낮은 가격순(같은 금액이면 최신 먼저), new면 최신순으로 정렬해 넘긴다.
+    제안이 있을 때만 /reviews를 한 번 읽어 판매자 평균 별점(rating, 리뷰가 없으면 None)을 붙인다.
+    """
+    if not is_valid_key(id):
+        abort(404)
+    stored = get_wanted(id)
+    if stored is None:
+        abort(404)
+
+    sort = request.args.get("sort", "low")
+    if sort not in ("low", "new"):
+        sort = "low"
+
+    post = {
+        **to_list_item(id, stored),
+        "description": stored.get("description", ""),
+        "picked_offer_id": stored.get("picked_offer_id") or "",
+        "offer_count": stored.get("offer_count") or 0,
+    }
+
+    raw_offers = load_offers(id)
+    reviews = load_reviews() if raw_offers else []
+    offers = [to_offer_item(offer, reviews) for offer in raw_offers]
+    # 정렬은 안정적이므로 최신순으로 먼저 정렬한 뒤 금액순으로 다시 정렬하면 같은 금액은 최신이 먼저 남는다
+    offers.sort(key=lambda offer: offer["created_at"], reverse=True)
+    if sort == "low":
+        offers.sort(key=lambda offer: offer["price"])
+
+    user_id = session.get("id")
+    is_writer = bool(user_id) and user_id == stored.get("writer")
+    return render_template("wanted/detail.html", post=post, offers=offers, is_writer=is_writer, sort=sort)
+
+
+def to_offer_item(offer, reviews):
+    """저장된 제안을 detail.html이 쓰는 필드로 바꾼다. reviews는 이미 읽은 /reviews 목록이다."""
+    seller = offer.get("seller", "")
+    avg_rating, count = seller_rating(seller, reviews)
+    created_at = offer.get("created_at") or ""
+    return {
+        "id": offer["id"],
+        "seller": seller,
+        "price": offer.get("price", 0),
+        "description": offer.get("description", ""),
+        "place": offer.get("place", ""),
+        "img_path": offer.get("img_path", ""),
+        "rating": avg_rating if count else None,
+        "date": format_date(created_at),
+        "created_at": created_at,
+    }
 
 
 @app.route("/wanted/new", methods=["GET", "POST"])
@@ -150,10 +197,9 @@ def wanted_new():
             "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         }
     )
-    save_wanted(post)
+    new_id = save_wanted(post)
     flash("글을 올렸어요.")
-    # ponytail: PR B에서 wanted_detail(id=새 id)로 바꾼다
-    return redirect(url_for("wanted_list"))
+    return redirect(url_for("wanted_detail", id=new_id))
 
 
 def validate_wanted_form(form, picture):

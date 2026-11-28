@@ -1,7 +1,7 @@
-"""구해요 글쓰기(wanted_new) 라우트 확인
+"""구해요 라우트(wanted_list, wanted_detail, wanted_new, wanted_offer, wanted_pick) 확인
 
 실행: (apps/be에서) python -m pytest test_wanted.py
-pyrebase db를 흉내 내는 FakeDb를 wanted.db에 주입해서 저장 내용을 확인한다.
+pyrebase db를 흉내 내는 FakeDb를 wanted.db와 review.db에 주입해서 저장 내용을 확인한다.
 """
 
 import io
@@ -114,13 +114,17 @@ class FakeDb:
 def fake_env():
     """테스트마다 새 FakeDb와 깨끗한 업로드 폴더, 로그인 상태를 준비한다."""
     original_db = wanted.db
+    original_review_db = review.db
     original_upload = product.UPLOAD_DIR
     fake_db = FakeDb()
     wanted.db = fake_db
+    # wanted_detail의 별점은 routes.review.load_reviews가 review.db에서 읽는다
+    review.db = fake_db
     product.UPLOAD_DIR = tempfile.mkdtemp()
     login("tester")
     yield fake_db
     wanted.db = original_db
+    review.db = original_review_db
     product.UPLOAD_DIR = original_upload
 
 
@@ -265,7 +269,8 @@ def test_db_none_shows_form_without_saving_picture():
 def test_success_saves_post_and_redirects(fake_env):
     response = post_new(valid_form())
     assert response.status_code == 302
-    assert response.headers["Location"] == "/wanted"
+    [new_id] = fake_env.store["wanted"]
+    assert response.headers["Location"] == f"/wanted/detail/{new_id}"
     with client.session_transaction() as sess:
         assert ("message", "글을 올렸어요.") in sess["_flashes"]
 
@@ -507,8 +512,8 @@ def test_list_when_and_date_are_empty_when_missing_or_invalid(fake_env, bad):
     assert item["date"] == ""
 
 
-def test_list_with_items_renders_detail_link(fake_env):
-    """카드는 글 id를 넣어 url_for('wanted_detail', id=...)로 상세에 연결한다 (#67)."""
+def test_list_card_links_to_detail_with_id(fake_env):
+    """카드는 글 id를 넣어 /wanted/detail/<id>로 상세에 연결한다."""
     seed_wanted(fake_env, "x1", name="공학용 계산기")
     response, _ = get_list()
     html = response.get_data(as_text=True)
@@ -516,26 +521,21 @@ def test_list_with_items_renders_detail_link(fake_env):
     assert "공학용 계산기" in html
 
 
-def test_detail_stub_returns_501():
-    assert client.get("/wanted/detail").status_code == 501
-    assert client.get("/wanted/detail/abc").status_code == 501
-
-
-def test_new_post_appears_in_list_after_redirect():
-    with captured_templates() as templates:
-        response = client.post(
-            "/wanted/new",
-            data=valid_form(name="새로 올린 글", places=["ECC", "기숙사"]),
-            content_type="multipart/form-data",
-            follow_redirects=True,
-        )
+def test_new_post_redirects_to_detail_and_appears_in_list(fake_env):
+    response = client.post(
+        "/wanted/new",
+        data=valid_form(name="새로 올린 글", places=["ECC", "기숙사"]),
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
     assert response.status_code == 200
-    assert response.request.path == "/wanted"
+    [new_id] = fake_env.store["wanted"]
+    assert response.request.path == f"/wanted/detail/{new_id}"
     html = response.get_data(as_text=True)
     assert "글을 올렸어요." in html
     assert "새로 올린 글" in html
-    template, context = templates[-1]
-    assert template.name == "wanted/list.html"
+
+    _, context = get_list()
     [item] = context["items"]
     assert item["name"] == "새로 올린 글"
     assert item["places"] == ["ECC", "기숙사"]
@@ -844,3 +844,227 @@ def test_offer_after_pick_is_rejected(fake_env):
     assert last_flash() == ("error", "이미 구한 글이에요.")
     assert len(saved_offers(fake_env)) == 1
     assert offer_count(fake_env) == 0
+
+
+# 8. 구해요 상세 (wanted_detail)
+def seed_offer(fake_db, wanted_id, offer_id, **fields):
+    offer = {
+        "seller": "kim",
+        "price": 20000,
+        "description": "",
+        "place": "",
+        "img_path": "",
+        "created_at": "2026-11-27T10:00:00+09:00",
+    }
+    offer.update(fields)
+    fake_db.child("offers").child(wanted_id).child(offer_id).set(offer)
+    return offer
+
+
+def seed_review(fake_db, review_id, seller, rating):
+    fake_db.child("reviews").child(review_id).set(
+        {"seller": seller, "rating": rating, "created_at": "2026-11-20T10:00:00+09:00"}
+    )
+
+
+def get_detail(path="/wanted/detail/w1"):
+    with captured_templates() as templates:
+        response = client.get(path)
+    assert response.status_code == 200
+    template, context = templates[0]
+    assert template.name == "wanted/detail.html"
+    return response, context
+
+
+def offer_ids(context):
+    return [offer["id"] for offer in context["offers"]]
+
+
+def test_detail_missing_post_is_404(fake_env):
+    seed_wanted(fake_env, "w1")
+    assert client.get("/wanted/detail/nope").status_code == 404
+
+
+@pytest.mark.parametrize("bad_id", ["a.b", "a#b", "a$b", "a[b]"])
+def test_detail_bad_id_is_404(fake_env, bad_id):
+    seed_wanted(fake_env, "w1")
+    assert client.get("/wanted/detail/" + bad_id.replace("#", "%23")).status_code == 404
+    assert fake_env.get_log == []
+
+
+def test_detail_db_none_is_404():
+    wanted.db = None
+    assert client.get("/wanted/detail/w1").status_code == 404
+
+
+def test_detail_without_id_is_404(fake_env):
+    seed_wanted(fake_env, "w1")
+    assert client.get("/wanted/detail").status_code == 404
+    assert client.get("/wanted/detail/").status_code == 404
+
+
+def test_detail_does_not_require_login(fake_env):
+    seed_wanted(fake_env, "w1", name="공학용 계산기")
+    logout()
+    response, _ = get_detail()
+    assert "공학용 계산기" in response.get_data(as_text=True)
+
+
+def test_detail_post_fields(fake_env):
+    seed_wanted(
+        fake_env,
+        "w1",
+        writer="kim",
+        name="공학용 계산기",
+        category="digital",
+        budget=15000,
+        condition="like_new",
+        due_date="2026-11-30",
+        places={"ECC": True, "아산공학관": True},
+        description="공대 시험용이에요.",
+        img_path="calc.png",
+        offer_count=2,
+        created_at="2026-11-26T10:00:00+09:00",
+    )
+    response, context = get_detail()
+    post = context["post"]
+    assert post["id"] == "w1"
+    assert post["writer"] == "kim"
+    assert post["name"] == "공학용 계산기"
+    assert post["category"] == "digital"
+    assert post["budget"] == 15000
+    assert post["condition"] == "like_new"
+    assert post["due_date"] == "2026-11-30"
+    assert isinstance(post["places"], list)
+    assert sorted(post["places"]) == ["ECC", "아산공학관"]
+    assert post["description"] == "공대 시험용이에요."
+    assert post["img_path"] == "calc.png"
+    assert post["state"] == "open"
+    assert post["picked_offer_id"] == ""
+    assert post["offer_count"] == 2
+    assert post["date"] == "2026.11.26"
+    assert "공대 시험용이에요." in response.get_data(as_text=True)
+
+
+def test_detail_post_defaults_when_fields_missing(fake_env):
+    post = seed_wanted(fake_env, "w1")
+    del post["picked_offer_id"], post["offer_count"], post["description"]
+    _, context = get_detail()
+    assert context["post"]["picked_offer_id"] == ""
+    assert context["post"]["offer_count"] == 0
+    assert context["post"]["description"] == ""
+
+
+def test_detail_offer_fields(fake_env):
+    seed_wanted(fake_env, "w1")
+    seed_offer(
+        fake_env,
+        "w1",
+        "o1",
+        seller="lee",
+        price=18000,
+        description="거의 새것",
+        place="ECC",
+        img_path="o.png",
+        created_at="2026-11-27T20:14:00+09:00",
+    )
+    _, context = get_detail()
+    assert context["offers"] == [
+        {
+            "id": "o1",
+            "seller": "lee",
+            "price": 18000,
+            "description": "거의 새것",
+            "place": "ECC",
+            "img_path": "o.png",
+            "rating": None,
+            "date": "2026.11.27",
+            "created_at": "2026-11-27T20:14:00+09:00",
+        }
+    ]
+
+
+def seed_sort_offers(fake_db):
+    seed_wanted(fake_db, "w1")
+    seed_offer(fake_db, "w1", "cheap_old", price=10000, created_at="2026-11-27T09:00:00+09:00")
+    seed_offer(fake_db, "w1", "cheap_new", price=10000, created_at="2026-11-27T12:00:00+09:00")
+    seed_offer(fake_db, "w1", "pricey_newest", price=25000, created_at="2026-11-27T15:00:00+09:00")
+    seed_offer(fake_db, "w1", "mid", price=15000, created_at="2026-11-27T10:00:00+09:00")
+
+
+@pytest.mark.parametrize("query", ["", "?sort=low", "?sort=price", "?sort="])
+def test_detail_sort_low_by_price_then_newest(fake_env, query):
+    seed_sort_offers(fake_env)
+    _, context = get_detail("/wanted/detail/w1" + query)
+    assert context["sort"] == "low"
+    assert offer_ids(context) == ["cheap_new", "cheap_old", "mid", "pricey_newest"]
+
+
+def test_detail_sort_new(fake_env):
+    seed_sort_offers(fake_env)
+    _, context = get_detail("/wanted/detail/w1?sort=new")
+    assert context["sort"] == "new"
+    assert offer_ids(context) == ["pricey_newest", "cheap_new", "mid", "cheap_old"]
+
+
+def test_detail_rating_is_average_or_none(fake_env):
+    seed_wanted(fake_env, "w1")
+    seed_offer(fake_env, "w1", "o1", seller="lee", price=10000)
+    seed_offer(fake_env, "w1", "o2", seller="park", price=20000)
+    seed_review(fake_env, "r1", "lee", 5)
+    seed_review(fake_env, "r2", "lee", 4)
+    seed_review(fake_env, "r3", "choi", 1)
+    response, context = get_detail()
+    ratings = {offer["seller"]: offer["rating"] for offer in context["offers"]}
+    assert ratings == {"lee": 4.5, "park": None}
+    assert "★ 4.5" in response.get_data(as_text=True)
+
+
+def test_detail_reads_reviews_once_when_offers_exist(fake_env):
+    seed_wanted(fake_env, "w1")
+    seed_offer(fake_env, "w1", "o1", seller="lee")
+    seed_offer(fake_env, "w1", "o2", seller="park")
+    get_detail()
+    assert fake_env.get_log.count(("reviews",)) == 1
+
+
+def test_detail_without_offers_does_not_read_reviews(fake_env):
+    seed_wanted(fake_env, "w1")
+    _, context = get_detail()
+    assert context["offers"] == []
+    assert ("reviews",) not in fake_env.get_log
+
+
+@pytest.mark.parametrize("user, expected", [("owner", True), ("someone", False), (None, False)])
+def test_detail_is_writer(fake_env, user, expected):
+    seed_wanted(fake_env, "w1", writer="owner")
+    if user is None:
+        logout()
+    else:
+        login(user)
+    _, context = get_detail()
+    assert context["is_writer"] is expected
+
+
+def test_offer_then_follow_redirect_shows_detail(fake_env):
+    seed_offer_target(fake_env)
+    response = client.post(
+        "/wanted/offer", data=offer_form(), content_type="multipart/form-data", follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert response.request.path == OFFER_DETAIL
+    html = response.get_data(as_text=True)
+    assert "제안을 보냈어요." in html
+    assert "상태 좋아요" in html
+
+
+def test_pick_then_follow_redirect_shows_detail(fake_env):
+    offer_id = seed_pick_target(fake_env)
+    with captured_templates() as templates:
+        response = client.post("/wanted/pick", data=pick_form(offer_id), follow_redirects=True)
+    assert response.status_code == 200
+    assert response.request.path == OFFER_DETAIL
+    assert "제안을 골랐어요." in response.get_data(as_text=True)
+    context = templates[-1][1]
+    assert context["post"]["state"] == "done"
+    assert context["post"]["picked_offer_id"] == offer_id
