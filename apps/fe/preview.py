@@ -822,6 +822,16 @@ def auction_bid():
     flash("미리보기에서는 실제 제안이 저장되지 않습니다.")
     return redirect(url_for("auction_detail", name=name))
 
+@app.route("/signup/code", methods=["POST"])
+def auth_send_code():
+    return "미리보기에서는 인증 메일을 보내지 않습니다. 아무 코드나 입력하고 코드 확인을 눌러 주세요.", 200
+
+
+@app.route("/signup/verify", methods=["POST"])
+def auth_verify_code():
+    return "메일 인증이 완료되었어요.", 200
+
+
 @app.route("/logout")
 def auth_logout():
     session.pop("id", None)

@@ -265,7 +265,10 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
 ### `auth_signup` `/signup`
 - POST: `user_id, password, password_confirm, email, auth_code, phone`(선택)
 - 성공하면 `auth_login`으로 redirect
-- 실패: 같은 템플릿에 `form`(`user_id, email, phone`), `errors`(`user_id, password, password_confirm, email, general`)를 넘겨 400으로 다시 표시
+- 실패: 같은 템플릿에 `form`(`user_id, email, phone`), `errors`(`user_id, password, password_confirm, email, auth_code, general`)를 넘겨 400으로 다시 표시
+- 메일 인증: `static/js/auth.js`가 '인증 요청'은 `auth_send_code`(`POST /signup/code`, 필드 `email`), '코드 확인'은 `auth_verify_code`(`POST /signup/verify`, 필드 `email, auth_code`)로 보내고, 응답 본문(안내 문구)을 그대로 표시합니다. 응답이 200이 아니면 오류로 표시합니다
+- 인증을 끝낸 뒤 다른 오류로 다시 표시할 때는 템플릿이 `session['email_verification']`의 `verified, email`을 읽어 인증 완료 상태를 유지합니다
+- 아이디 중복 확인 버튼은 없습니다. 가입하기를 누르면 `errors.user_id`로 표시합니다
 
 ### `auth_send_code` `/signup/code`
 - POST: `email`
@@ -277,7 +280,7 @@ FE 템플릿이 `url_for`로 부르는 라우트 목록입니다. BE는 이 표�
   - 이미 가입된 이메일인 경우 오류 메시지를 400으로 반환
   - 인증 메일 발송 중 오류가 발생한 경우 오류 메시지를 500으로 반환
 
-### `auth_send_code` `/signup/verify`
+### `auth_verify_code` `/signup/verify`
 - POST: `email, auth_code`
 - 성공하면 입력한 인증 코드가 일치하는지 확인하고, 세션의 인증 상태를 verified=True로 변경한 뒤 성공 메시지를 200으로 반환
 - 실패: 
@@ -327,7 +330,7 @@ BE(`apps/be`)는 이 문서의 라우트 함수 이름과 경로를 그대로 �
 | 로그인·회원가입 | `user_id`, `password` | 같은 이름으로 받음 (예전 `id`, `pw`) | 맞춤 |
 | 회원가입 | `nickname` 없음 | `nickname`을 받지 않음 | 맞춤 |
 | 회원가입 | `email`, `phone` | 저장함 | 맞춤 |
-| 회원가입 | `auth_code` | 아직 확인하지 않음 (BE TODO) | BE 작업 남음 |
+| 회원가입 | `auth_code` | 메일 인증을 끝낸 세션인지 확인함 | 맞춤 |
 | 상품 등록 | `description` | 저장함 | 맞춤 |
 | 상품 등록 | `email` 없음 | `email`을 받지 않음 | 맞춤 |
 | 상품 등록 | `seller` | 받지 않고 `session['id']`를 씀. 로그인해야 등록 화면에 들어갈 수 있어 FE 칸은 읽기 전용으로 보임 | 맞춤 |
