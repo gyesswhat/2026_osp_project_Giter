@@ -1,5 +1,7 @@
 """더미 데이터. DB 로직으로 교체한 뒤 이 파일을 삭제한다."""
 
+from datetime import datetime, timedelta
+
 # kind: fixed(가격 고정) | bid(가격 제안). sale_status: sale/hold/done
 PREVIEW_PRODUCTS = [
     {
@@ -76,6 +78,24 @@ PREVIEW_PRODUCTS = [
         "date": "2026.10.02",
     },
 ]
+
+# 경매 정보와 제안. 키는 상품명이다. 마감 시각은 서버를 시작한 시각 + 3일로 계산한다
+PREVIEW_AUCTIONS = {
+    "아이패드 에어 5세대 64GB": {
+        "product_name": "아이패드 에어 5세대 64GB",
+        "duration_days": 3,
+        "end_at": (datetime.now().astimezone() + timedelta(days=3)).isoformat(timespec="seconds"),
+        "top_price": 435000,
+        "bid_count": 2,
+        "decision": "pending",
+    },
+}
+PREVIEW_BIDS = {
+    "아이패드 에어 5세대 64GB": [
+        {"bidder": "kimewha07", "price": 430000, "created_at": "2026-11-20T12:15:00+09:00"},
+        {"bidder": "abcd12", "price": 435000, "created_at": "2026-11-20T14:30:00+09:00"},
+    ],
+}
 
 
 def find_product(name):

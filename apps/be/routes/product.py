@@ -1,18 +1,19 @@
 """상품 라우트: product_list, product_new, product_reserve, product_detail
 
-db가 None이면(Firebase 설정 파일 없음) dummy.PREVIEW_PRODUCTS를 상품 저장소로 사용한다.
+db가 None이면(Firebase 설정 파일 없음) dummy.PREVIEW_PRODUCTS, dummy.PREVIEW_AUCTIONS를 저장소로 사용한다.
+경매 정보(/auctions)는 상품과 1:1이므로 저장소 함수를 이 파일에 둔다. 제안(/bids)은 routes/auction.py에 있다.
 """
 
 import math
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 from core import app, db, to_int
-from dummy import PREVIEW_PRODUCTS, find_product
+from dummy import PREVIEW_AUCTIONS, PREVIEW_PRODUCTS, find_product
 
 PAGE_SIZE = 8
 # /product/new, /product/reserve, /review/done 등 고정 경로와 겹치는 상품명 (schema.dbml products.name)
@@ -25,6 +26,10 @@ CONDITIONS = ("최상", "상", "중", "하")
 PICTURE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 PICTURE_MAX_BYTES = 5 * 1024 * 1024
 UPLOAD_DIR = os.path.join(app.static_folder, "uploads")
+# 가격 정하는 방식. schema.dbml product_kind
+KINDS = ("fixed", "bid")
+# 제안 받는 기간(일). schema.dbml auctions.duration_days
+DURATION_DAYS = (1, 3, 5, 7)
 
 
 @app.route("/")
@@ -46,7 +51,10 @@ def product_list():
 
 @app.route("/product/new", methods=["GET", "POST"])
 def product_new():
-    """상품 등록. POST: name, price, address, status, description, picture. 판매자는 session['id']이다."""
+    """상품 등록. POST: name, kind, price(fixed), duration(bid), address, status, description, picture.
+
+    판매자는 session['id']이다. kind=bid이면 가격을 받지 않고 경매 정보(/auctions)를 함께 저장한다.
+    """
     seller = session.get("id")
     if seller is None:
         flash("상품을 등록하려면 로그인해 주세요.", "error")
@@ -61,18 +69,28 @@ def product_new():
         return render_template("product/new.html", form=form, errors=errors), 400
 
     product = {field: form[field].strip() for field in ("name", "address", "status", "description")}
+    kind = form.get("kind", "fixed")
+    created_at = datetime.now().astimezone()
     product.update(
         seller=seller,
-        kind="fixed",
-        price=to_int(form["price"]),
+        kind=kind,
         img_path=save_picture(picture),
         sale_status="sale",
         likes=0,
-        created_at=datetime.now().astimezone().isoformat(timespec="seconds"),
+        created_at=created_at.isoformat(timespec="seconds"),
     )
+    if kind == "fixed":
+        product["price"] = to_int(form["price"])
+        save_product(product)
+        flash("상품을 등록했어요.")
+        return redirect(url_for("product_detail", name=product["name"]))
+
+    # 경매 정보가 없는 경매 상품이 목록에 남지 않도록 경매 정보를 먼저 저장한다
+    duration_days = to_int(form["duration"])
+    start_auction(product["name"], duration_days, created_at)
     save_product(product)
-    flash("상품을 등록했어요.")
-    return redirect(url_for("product_detail", name=product["name"]))
+    flash(f"상품을 등록했어요. {duration_days}일 동안 제안을 받아요.")
+    return redirect(url_for("auction_detail", name=product["name"]))
 
 
 @app.route("/product/reserve", methods=["POST"])
@@ -149,9 +167,19 @@ def validate_product_form(form, picture):
     name_error = validate_name(form.get("name", "").strip())
     if name_error is not None:
         errors["name"] = name_error
-    price = to_int(form.get("price"))
-    if price is None or price <= 0:
-        errors["price"] = "가격을 0보다 큰 숫자로 입력해 주세요."
+    # 등록 화면은 kind를 항상 보낸다. kind가 없는 요청은 fixed로 처리한다
+    kind = form.get("kind", "fixed")
+    if kind not in KINDS:
+        errors["kind"] = "가격 정하는 방식을 골라 주세요."
+    elif kind == "fixed":
+        price_error = validate_price(to_int(form.get("price")))
+        if price_error is not None:
+            errors["price"] = price_error
+    else:
+        # kind=bid이면 가격 칸이 화면에 없으므로 price는 검사하지 않는다
+        duration_error = validate_duration(to_int(form.get("duration")))
+        if duration_error is not None:
+            errors["duration"] = duration_error
     if form.get("status") not in CONDITIONS:
         errors["status"] = "상품 상태를 골라 주세요."
     picture_error = validate_picture(picture)
@@ -169,6 +197,18 @@ def validate_name(name):
         return "상품명에는 . $ # [ ] 문자를 쓸 수 없어요."
     if get_product(name) is not None:
         return "같은 이름의 상품이 이미 있어요. 이름을 조금 바꿔 주세요."
+    return None
+
+
+def validate_price(price):
+    if price is None or price <= 0:
+        return "가격을 0보다 큰 숫자로 입력해 주세요."
+    return None
+
+
+def validate_duration(duration_days):
+    if duration_days not in DURATION_DAYS:
+        return "제안 받는 기간을 1일, 3일, 5일, 7일 중에서 골라 주세요."
     return None
 
 
@@ -209,17 +249,28 @@ def product_key(name):
 
 
 def load_products():
+    """전체 상품. 경매 상품에는 목록 카드가 쓰는 경매 값을 추가한다."""
     if db is None:
-        return list(PREVIEW_PRODUCTS)
+        return [with_auction(product, PREVIEW_AUCTIONS.get(product["name"])) for product in PREVIEW_PRODUCTS]
     stored = db.child("products").get().val() or {}
-    return [with_date(product) for product in stored.values()]
+    auctions = db.child("auctions").get().val() or {}
+    return [with_auction(with_date(product), auctions.get(key)) for key, product in stored.items()]
 
 
-def get_product(name):
+def get_stored_product(name):
+    """저장된 상품을 그대로 읽는다. 경매 값은 추가하지 않는다."""
     if db is None:
         return find_product(name)
     product = db.child("products").child(product_key(name)).get().val()
     return None if product is None else with_date(product)
+
+
+def get_product(name):
+    """상품 하나. 경매 상품에는 경매 값을 추가한다."""
+    product = get_stored_product(name)
+    if product is None or product["kind"] != "bid":
+        return product
+    return with_auction(product, get_auction(name))
 
 
 def save_product(product):
@@ -227,6 +278,14 @@ def save_product(product):
         PREVIEW_PRODUCTS.insert(0, with_date(product))
         return
     db.child("products").child(product_key(product["name"])).set(product)
+
+
+def update_product(name, changes):
+    """저장된 상품에서 changes의 필드만 바꾼다."""
+    if db is None:
+        find_product(name).update(changes)
+        return
+    db.child("products").child(product_key(name)).update(changes)
 
 
 def with_date(product):
@@ -240,3 +299,53 @@ def is_liked(name):
     if db is None or user_id is None:
         return False
     return db.child("likes").child(user_id).child(product_key(name)).get().val() is not None
+
+
+# 5. 경매 정보 저장소 (Firebase /auctions/{key} 또는 더미)
+def get_auction(name):
+    if db is None:
+        return PREVIEW_AUCTIONS.get(name)
+    return db.child("auctions").child(product_key(name)).get().val()
+
+
+def save_auction(auction):
+    if db is None:
+        PREVIEW_AUCTIONS[auction["product_name"]] = auction
+        return
+    db.child("auctions").child(product_key(auction["product_name"])).set(auction)
+
+
+def start_auction(name, duration_days, started_at):
+    """제안이 없는 경매 정보를 저장한다. 마감 시각은 started_at + duration_days이다 (schema.dbml auctions)"""
+    end_at = started_at + timedelta(days=duration_days)
+    save_auction(
+        {
+            "product_name": name,
+            "duration_days": duration_days,
+            "end_at": end_at.isoformat(timespec="seconds"),
+            "top_price": 0,
+            "bid_count": 0,
+            "decision": "pending",
+        }
+    )
+
+
+def is_closed(auction):
+    """마감 여부. 스케줄러 없이 요청 시점의 현재 시각과 end_at을 비교한다."""
+    return datetime.fromisoformat(auction["end_at"]) <= datetime.now().astimezone()
+
+
+def with_auction(product, auction):
+    """경매 상품에 price(최고 제안가), bid_count, end_at, closed를 추가한다. 고정가 상품은 그대로 반환한다.
+
+    product_new가 경매 정보를 상품보다 먼저 저장하므로 경매 상품에는 항상 경매 정보가 있다.
+    """
+    if product["kind"] != "bid":
+        return product
+    return {
+        **product,
+        "price": auction["top_price"],
+        "bid_count": auction["bid_count"],
+        "end_at": auction["end_at"],
+        "closed": is_closed(auction),
+    }

@@ -1,0 +1,26 @@
+# BoughtIT 기술 블로그 (GitHub Pages + Jekyll)
+title: BoughtIT 기술 블로그
+description: 이화인 중고거래 서비스 BoughtIT(벗잇)를 만들면서 배우고 고친 것들
+lang: ko
+
+# 올리는 저장소에 맞게 바꾼다 (README.md 참고)
+# - 프로젝트 저장소(https://아이디.github.io/저장소이름/)면 "/저장소이름"
+# - 아이디.github.io 저장소면 ""
+baseurl: "/2026_osp_project_Giter"
+url: ""
+
+# 팀 프로젝트 저장소 (글 안의 코드 링크에 쓴다)
+repo_url: https://github.com/gyesswhat/2026_osp_project_Giter
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+highlighter: rouge
+
+permalink: /posts/:title/
+timezone: Asia/Seoul
+
+exclude:
+  - README.md

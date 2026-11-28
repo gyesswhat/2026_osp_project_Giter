@@ -27,7 +27,7 @@ SCREENS = [
     ("/review/new", "review_new", "review/new.html"),
     ("/review/done", "review_done", "review/done.html"),
     ("/auction/detail/<path:name>", "auction_detail", "auction/detail.html"),
-    ("/auction/end", "auction_end", "auction/end.html"),
+    ("/auction/end/<path:name>", "auction_end", "auction/end.html"),
     ("/chat", "chat_room", "chat/room.html"),
     ("/wanted", "wanted_list", "wanted/list.html"),
     ("/wanted/detail", "wanted_detail", "wanted/detail.html"),
@@ -143,13 +143,60 @@ def product_list():
 def _find_product(name):
     return next((p for p in PREVIEW_PRODUCTS if p["name"] == name), None)
 
+def review_detail(name):
+    """리뷰 상세 화면 미리보기용 더미 데이터"""
+    review = {
+        "product_name": name,
+        "reviewer": "ewhain_sw",
+        "seller": "baekkot21",
+        "rating": 5,
+        "title": "책 상태가 설명 그대로였어요",
+        "content": "필기가 조금 있다고 하셨는데 정말 연필로 몇 군데만 있어서 지우고 바로 쓸 수 있었어요.",
+        "photo": "",
+        "created_at": "2026-10-05",
+        "date": "2026.10.05",
+    }
+
+    product = _find_product(name)
+
+    return render_template(
+        "review/detail.html",
+        review=review,
+        product=product,
+    )
+
 
 def product_detail(name):
     """상품 상세 미리보기. /product/<상품명> 으로 찾고, 없으면 404"""
     product = _find_product(name)
     if product is None:
         abort(404)
-    return render_template("product/detail.html", product=product, liked=False)
+    return render_template("product/detail.html", product=product, liked=name in session.get("liked", []))
+
+
+def product_like():
+    """찜 토글 미리보기. BE product_like와 같은 흐름이고, 찜 목록은 세션에만 둔다 (DB에 저장하지 않음)"""
+    if not session.get("id"):
+        flash("찜하려면 로그인해 주세요.", "error")
+        return redirect(url_for("auth_login"))
+    name = request.form.get("name", "")
+    product = _find_product(name)
+    if product is None:
+        abort(404)
+    if product.get("seller") == session["id"]:
+        flash("내가 올린 상품은 찜할 수 없어요.", "error")
+        return redirect(url_for("product_detail", name=name))
+    liked = session.get("liked", [])
+    if name in liked:
+        liked.remove(name)
+        product["likes"] = max(0, product.get("likes", 0) - 1)
+        flash("찜을 취소했어요.")
+    else:
+        liked.append(name)
+        product["likes"] = product.get("likes", 0) + 1
+        flash("찜했어요.")
+    session["liked"] = liked
+    return redirect(url_for("product_detail", name=name))
 
 
 def auction_detail(name):
@@ -163,8 +210,8 @@ def auction_detail(name):
     auction = {
         "top_price": highest_bid,
         "bid_count": 0,
-        "end_at": "2026-11-25T18:00:00",
-        "closed": False,
+        "end_at": product.get("end_at"),
+        "closed": product.get("closed", False),
     }
 
     if highest_bid==0:
@@ -245,7 +292,7 @@ product_new.methods = ["GET", "POST"]
 
 # /product/<path:name>, /review/<path:name> 보다 먼저 잡히는 고정 경로.
 # 이 이름의 상품은 상세(상품·리뷰)로 갈 수 없어서 등록을 막는다
-RESERVED_NAMES = {"new", "reserve", "done"}
+RESERVED_NAMES = {"new", "reserve", "done", "like"}
 
 
 def review_new():
@@ -292,6 +339,66 @@ def review_done():
     """리뷰 등록 완료 미리보기. 방금 제출한 값을 세션에서 꺼내 보여 준다"""
     return render_template("review/done.html", review=session.get("last_review"))
 
+def review_list():
+    """리뷰 목록 미리보기용 더미 데이터"""
+    reviews = [
+        {
+            "product_name": "컴퓨터구조 및 설계 5판",
+            "reviewer": "ewhain_sw",
+            "seller": "baekkot21",
+            "rating": 5,
+            "title": "책 상태가 설명 그대로였어요",
+            "date": "2026.10.05",
+            "photo": "",
+        },
+        {
+            "product_name": "로지텍 K380 무선 키보드",
+            "reviewer": "pear_blossom",
+            "seller": "ewhain_sw",
+            "rating": 5,
+            "title": "약속 시간을 잘 맞춰 주셨어요",
+            "date": "2026.10.04",
+            "photo": "",
+        },
+        {
+            "product_name": "기숙사용 미니 냉장고",
+            "reviewer": "hanwoori302",
+            "seller": "hanwoori_210",
+            "rating": 4,
+            "title": "냉장고 소음이 거의 없어요",
+            "date": "2026.10.02",
+            "photo": "",
+        },
+    ]
+
+    seller = request.args.get("seller", "")
+    if seller:
+        reviews = [r for r in reviews if r["seller"] == seller]
+
+    total = len(reviews)
+    page = max(1, int(request.args.get("page", 1)))
+    total_pages = max(1, (total + 9) // 10)
+    page = min(page, total_pages)
+
+    seller_info = None
+    if seller:
+        avg = round(sum(r["rating"] for r in reviews) / total, 1) if total else 0
+        seller_info = {
+            "id": seller,
+            "avg_rating": avg,
+            "count": total,
+        }
+
+    return render_template(
+        "review/list.html",
+        reviews=reviews[(page - 1) * 10:page * 10],
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        seller=seller,
+        seller_info=seller_info,
+    )
+
 
 def auth_login():
     """로그인 미리보기. 비밀번호는 확인하지 않고, ID만 있으면 로그인 처리 후 상품 목록으로 간다"""
@@ -315,6 +422,55 @@ def auth_signup():
 auth_login.methods = ["GET", "POST"]
 auth_signup.methods = ["GET", "POST"]
 
+def auction_end(name):
+    """상품별 경매 마감 화면 미리보기 (실제 DB 저장 없음)"""
+    product = _find_product(name)
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    preview_bids = {
+        "닌텐도 스위치 라이트": [165000, 160000, 152000, 140000, 120000],
+        "아이패드 에어 5세대 64GB": [435000, 430000, 420000, 410000, 400000],
+        "필름 카메라 올림푸스 뮤2": [120000, 115000, 110000, 100000, 90000],
+        "이케아 스탠드 조명": [],
+    }
+
+    amounts = preview_bids.get(name, []) if int(product["price"]) > 0 else []
+
+    users = ["po***", "ew***", "cs***", "ha***", "ar***"]
+    dates = ["11.02 20:51", "11.02 18:05", "11.01 23:11",
+             "10.31 22:47", "10.30 19:31"]
+
+    bids = [
+        {"bidder": user, "price": amount, "date": date}
+        for user, amount, date in zip(users, amounts, dates)
+    ]
+    if bids and session.get("id") == product["seller"]:
+        bids[0]["bidder"] = "posco_23"
+
+    decisions = session.get("auction_decisions", {})
+
+    auction = {
+        "top_price": max(amounts, default=0),
+        "bid_count": len(bids),
+        "decision": decisions.get(name, "pending"),
+        "closed": True,
+        "end_at": product.get("end_at"),
+    }
+
+    deadline = (
+        datetime.fromisoformat(product["end_at"])
+        + timedelta(hours=48)
+    ).isoformat(timespec="seconds")
+
+    return render_template(
+        "auction/end.html",
+        product=product,
+        auction=auction,
+        bids=bids,
+        deadline=deadline,
+    )
 
 # 더미 데이터나 POST 처리가 필요한 화면은 make_view 대신 이 뷰를 쓴다
 CUSTOM_VIEWS = {
@@ -324,8 +480,11 @@ CUSTOM_VIEWS = {
     "product_new": product_new,
     "review_new": review_new,
     "review_done": review_done,
+    "review_list": review_list,
+    "review_detail": review_detail,
     "auth_login": auth_login,
     "auth_signup": auth_signup,
+    "auction_end": auction_end,
 }
 
 
@@ -347,6 +506,109 @@ for path, endpoint, template in SCREENS:
 
 
 app.add_url_rule("/product/reserve", "product_reserve", product_reserve, methods=["POST"])
+app.add_url_rule("/product/like", "product_like", product_like, methods=["POST"])
+
+@app.route("/auction/decide", methods=["POST"])
+def auction_decide():
+    name = request.form.get("name", "")
+    decision = request.form.get("decision", "")
+    product = _find_product(name)
+
+    if not session.get("id"):
+        return redirect(url_for("auth_login"))
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    if session.get("id") != product["seller"]:
+        flash("판매자만 거래를 결정할 수 있어요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    decisions = session.get("auction_decisions", {})
+
+    if decisions.get(name, "pending") != "pending":
+        flash("이미 결정된 경매예요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if decision not in ("accepted", "rejected"):
+        flash("올바른 거래 상태를 선택해 주세요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if decision == "accepted" and int(product["price"]) == 0:
+        flash("받은 제안이 없어요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    decisions[name] = decision
+    session["auction_decisions"] = decisions
+
+    if decision == "accepted":
+        product["sale_status"] = "hold"
+        flash("거래가 확정됐어요.")
+    else:
+        flash("이번 제안으로는 거래하지 않아요.")
+
+    return redirect(url_for("auction_end", name=name))
+
+@app.route("/auction/reopen", methods=["POST"])
+def auction_reopen():
+    name = request.form.get("name", "")
+    mode = request.form.get("mode", "")
+    product = _find_product(name)
+
+    if not session.get("id"):
+        return redirect(url_for("auth_login"))
+
+    if product is None or product.get("kind") != "bid":
+        abort(404)
+
+    decisions = session.get("auction_decisions", {})
+
+    if session.get("id") != product["seller"] or decisions.get(name) != "rejected":
+        flash("다시 올릴 수 없는 경매예요.", "error")
+        return redirect(url_for("auction_end", name=name))
+
+    if mode == "bid":
+        duration_days = _int(request.form.get("duration_days"))
+
+        if duration_days not in (1, 3, 5, 7):
+            flash("제안 받는 기간을 골라 주세요.", "error")
+            return redirect(url_for("auction_end", name=name))
+
+        product.update(
+            price=0,
+            bid_count=0,
+            end_at=_ends_in(days=duration_days),
+            closed=False,
+            sale_status="sale",
+        )
+
+        decisions[name] = "pending"
+        session["auction_decisions"] = decisions
+
+        flash("다시 제안을 받기 시작했어요.")
+        return redirect(url_for("auction_detail", name=name))
+
+    elif mode == "fixed":
+        price = request.form.get("price", "")
+
+        if not price.isdecimal():
+            flash("가격을 숫자로 입력해 주세요.", "error")
+            return redirect(url_for("auction_end", name=name))
+
+        product.update(
+            kind="fixed",
+            price=int(price),
+            sale_status="sale",
+        )
+
+        decisions.pop(name, None)
+        session["auction_decisions"] = decisions
+
+        flash("가격을 정해서 다시 올렸어요.")
+        return redirect(url_for("product_detail", name=name))
+
+    flash("올바른 판매 방식을 선택해 주세요.", "error")
+    return redirect(url_for("auction_end", name=name))
 
 @app.route("/auction/bid", methods=["POST"])
 def auction_bid():
@@ -371,6 +633,13 @@ def wanted_offer():
 def wanted_pick():
     flash("미리보기에서는 고른 제안이 저장되지 않습니다.")
     return redirect(url_for("wanted_detail", id=request.form.get("wanted_id", "")))
+
+
+# 마이페이지 약속 탭의 수락·거절 폼이 url_for로 부르는 라우트. 미리보기에서는 저장하지 않고 마이페이지로 돌아간다
+@app.route("/reservation/decide", methods=["POST"])
+def reservation_decide():
+    flash("미리보기에서는 약속 수락·거절이 저장되지 않습니다.")
+    return redirect(url_for("my_index", tab="deals"))
 
 
 @app.route("/dev/components")
