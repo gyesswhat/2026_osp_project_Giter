@@ -219,6 +219,17 @@
   min-height: 360px;
   padding: 24px;
 }
+.tag-done {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 2px;
+    padding: 2px 6px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 700;
+    background: var(--tint);
+    color: var(--muted);
+}
 
 /* 모바일 대응 */
 @media (max-width: 767px) {

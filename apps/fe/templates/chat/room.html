@@ -22,7 +22,7 @@
         {% for item in rooms %}
         {% set partner = item.buyer if item.seller == login_id else item.seller %}
 
-        <a href="{{ url_for('chat_room', room_id=item.id, mode=mode) }}"
+        <a href="{{ url_for('chat_room', room_id=item.id, mode=mode) if mode is defined else url_for('chat_room', room_id=item.id) }}"
             class="chat-room-item {% if room and item.id == room.id %}is-active{% endif %}" {% if room and
             item.id==room.id %}aria-current="page" {% endif %}>
 
@@ -110,8 +110,10 @@
             </div>
 
             <div class="chat-action-buttons">
-                {{ button('약속 신청', disabled=(reservation or room.buyer != login_id)) }}
-                {{ button('약속 수락', disabled=(not reservation or reservation.state != 'pending' or room.seller !=
+                {{ button('약속 신청', disabled=(room.buyer != login_id or (reservation and reservation.state !=
+                'rejected'))) }}
+                {{ button('약속 수락', disabled=(not reservation or reservation.state != 'pending' or
+                room.seller !=
                 login_id)) }}
             </div>
         </div>
@@ -179,7 +181,9 @@
         <form class="chat-compose" method="post" action="{{ url_for('chat_room') }}">
 
             <input type="hidden" name="room_id" value="{{ room.id }}">
+            {% if mode is defined %}
             <input type="hidden" name="mode" value="{{ mode }}">
+            {% endif %}
 
             <input class="field chat-input" type="text" name="text" placeholder="메시지를 입력하세요" aria-label="메시지"
                 autocomplete="off" required>

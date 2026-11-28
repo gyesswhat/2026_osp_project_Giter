@@ -649,13 +649,16 @@ def chat_room():
                     PREVIEW_CHAT_REPLY,
                     PREVIEW_CHAT_ACCEPT,
                 ])
-                reservation = {"state": "accepted"}
+                reservation = {"state": "confirmed"}
             
             if product:
                 product = dict(
                     product,
                     sale_status="hold" if mode == "accepted" else "sale"
                 )
+    
+        if room["id"] == "room2" and mode == "requested":
+            reservation = {"state": "pending"}
 
         messages.extend(
             sent_messages.get(room["id"], [])
